@@ -9,17 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for Phase 2 (v0.3.0)
+### Planned for Phase 2.2 (v0.4.0)
 - HealthKit integration module
-- User profile management
-- Physical attributes tracking
-- Profile synchronization
+- Health metrics tracking
+- Sleep and mindfulness session support
 
 ### Planned for Phase 3 (v1.0.0)
 - SwiftData utilities
 - Common UI components
 - Date/String extensions
 - Logger utilities
+
+---
+
+## [0.3.0] - 2025-01-27
+
+### Added
+- **Enhanced UserProfile for Multi-App Support**
+  - Optional physical attributes (biologicalSex, heightCm) for FitIQ health calculations
+  - Optional profile metadata (bio, username, languageCode)
+  - HealthKit sync state tracking (hasPerformedInitialHealthKitSync, lastSuccessfulDailySyncDate)
+  - Preferences (preferredUnitSystem: "metric" or "imperial")
+  - New update methods:
+    - `updatingPhysical()` - Update biological sex and height
+    - `updatingHealthKitSync()` - Update HealthKit sync state
+  - All new fields are optional with sensible defaults
+
+### Changed
+- UserProfile now supports both simple (Lume) and complex (FitIQ) use cases
+- Backward compatible with existing Lume implementation
+- Simple initializer maintained for Lume (only id, email, name, dateOfBirth)
+- Full initializer available for FitIQ with all optional fields
+
+### Migration Guide
+- **Lume:** No changes needed - simple initializer still works
+  ```swift
+  let profile = UserProfile(
+      id: userId,
+      email: "user@example.com",
+      name: "Jane Doe",
+      dateOfBirth: birthDate
+  )
+  ```
+- **FitIQ:** Can now use FitIQCore.UserProfile instead of local implementation
+  ```swift
+  let profile = UserProfile(
+      id: userId,
+      email: "user@example.com",
+      name: "John Doe",
+      bio: "Fitness enthusiast",
+      biologicalSex: "male",
+      heightCm: 180.0,
+      dateOfBirth: birthDate,
+      hasPerformedInitialHealthKitSync: true
+  )
+  ```
 
 ---
 

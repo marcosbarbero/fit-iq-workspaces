@@ -12,29 +12,39 @@ import Foundation
 /// This model represents the core user profile data that both applications need.
 /// It is stored securely in the Keychain alongside authentication tokens.
 ///
+/// **Enhanced for Multi-App Support:**
+/// - Core fields: Required by both apps (id, email, name)
+/// - Optional fields: App-specific (physical attributes, HealthKit sync)
+/// - Lume: Uses simple initializer with core fields only
+/// - FitIQ: Uses full initializer with physical and HealthKit fields
+///
 /// **Usage:**
 /// ```swift
-/// // Create profile after successful authentication
-/// let profile = UserProfile(
+/// // Lume: Simple profile
+/// let lumeProfile = UserProfile(
 ///     id: userId,
 ///     email: "user@example.com",
-///     name: "John Doe",
+///     name: "Jane Doe",
 ///     dateOfBirth: birthDate
 /// )
 ///
-/// // Save via AuthManager
-/// await authManager.saveUserProfile(profile)
-///
-/// // Retrieve current profile
-/// if let profile = authManager.currentUserProfile {
-///     print("Welcome, \(profile.name)")
-/// }
+/// // FitIQ: Full profile with physical attributes
+/// let fitiqProfile = UserProfile(
+///     id: userId,
+///     email: "user@example.com",
+///     name: "John Doe",
+///     bio: "Fitness enthusiast",
+///     biologicalSex: "male",
+///     heightCm: 180.0,
+///     dateOfBirth: birthDate,
+///     hasPerformedInitialHealthKitSync: true
+/// )
 /// ```
 ///
 /// **Thread Safety:** This is an immutable value type and is thread-safe.
 public struct UserProfile: Codable, Equatable, Sendable {
 
-    // MARK: - Properties
+    // MARK: - Core Identity (Required)
 
     /// Unique identifier for the user
     public let id: UUID
@@ -45,38 +55,94 @@ public struct UserProfile: Codable, Equatable, Sendable {
     /// User's display name
     public let name: String
 
-    /// User's date of birth (optional)
-    public let dateOfBirth: Date?
-
     /// When this profile was created
     public let createdAt: Date
 
     /// When this profile was last updated
     public let updatedAt: Date
 
+    // MARK: - Optional Profile Fields
+
+    /// User's biographical information (optional, FitIQ only)
+    public let bio: String?
+
+    /// Username derived from email or custom (optional)
+    public let username: String?
+
+    /// User's preferred language code (optional, e.g., "en", "es")
+    public let languageCode: String?
+
+    /// User's date of birth (optional)
+    public let dateOfBirth: Date?
+
+    // MARK: - Physical Attributes (FitIQ Only)
+
+    /// Biological sex: "male", "female", "other" (optional, for health calculations)
+    public let biologicalSex: String?
+
+    /// Height in centimeters (optional, for health calculations)
+    public let heightCm: Double?
+
+    // MARK: - Preferences
+
+    /// Preferred unit system: "metric" or "imperial" (defaults to "metric")
+    public let preferredUnitSystem: String
+
+    // MARK: - HealthKit Sync State (FitIQ Only)
+
+    /// Whether initial HealthKit sync has been performed (defaults to false)
+    public let hasPerformedInitialHealthKitSync: Bool
+
+    /// Date of last successful daily sync (optional)
+    public let lastSuccessfulDailySyncDate: Date?
+
     // MARK: - Initialization
 
-    /// Creates a new user profile
+    /// Creates a new user profile (full initializer for FitIQ)
     ///
     /// - Parameters:
     ///   - id: User's unique identifier
     ///   - email: User's email address
     ///   - name: User's display name
+    ///   - bio: User's biographical information (optional)
+    ///   - username: Username (optional)
+    ///   - languageCode: Preferred language code (optional)
     ///   - dateOfBirth: User's date of birth (optional)
+    ///   - biologicalSex: Biological sex for health calculations (optional)
+    ///   - heightCm: Height in centimeters (optional)
+    ///   - preferredUnitSystem: Unit system preference (defaults to "metric")
+    ///   - hasPerformedInitialHealthKitSync: HealthKit sync state (defaults to false)
+    ///   - lastSuccessfulDailySyncDate: Last sync date (optional)
     ///   - createdAt: Profile creation date (defaults to now)
     ///   - updatedAt: Last update date (defaults to now)
     public init(
         id: UUID,
         email: String,
         name: String,
+        bio: String? = nil,
+        username: String? = nil,
+        languageCode: String? = nil,
         dateOfBirth: Date? = nil,
+        biologicalSex: String? = nil,
+        heightCm: Double? = nil,
+        preferredUnitSystem: String = "metric",
+        hasPerformedInitialHealthKitSync: Bool = false,
+        lastSuccessfulDailySyncDate: Date? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
         self.id = id
         self.email = email
         self.name = name
+        self.bio = bio
+        self.username = username
+        self.languageCode = languageCode
         self.dateOfBirth = dateOfBirth
+        self.biologicalSex = biologicalSex
+        self.heightCm = heightCm
+        self.preferredUnitSystem = preferredUnitSystem
+        self.hasPerformedInitialHealthKitSync = hasPerformedInitialHealthKitSync
+        self.lastSuccessfulDailySyncDate = lastSuccessfulDailySyncDate
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -205,7 +271,7 @@ extension UserProfile {
 
 extension UserProfile {
 
-    /// Creates an updated copy of the profile with new values
+    /// Creates an updated copy of the profile with new basic information
     ///
     /// - Parameters:
     ///   - email: New email (optional, keeps existing if nil)
@@ -221,9 +287,73 @@ extension UserProfile {
             id: self.id,
             email: email ?? self.email,
             name: name ?? self.name,
+            bio: self.bio,
+            username: self.username,
+            languageCode: self.languageCode,
             dateOfBirth: dateOfBirth ?? self.dateOfBirth,
+            biologicalSex: self.biologicalSex,
+            heightCm: self.heightCm,
+            preferredUnitSystem: self.preferredUnitSystem,
+            hasPerformedInitialHealthKitSync: self.hasPerformedInitialHealthKitSync,
+            lastSuccessfulDailySyncDate: self.lastSuccessfulDailySyncDate,
             createdAt: self.createdAt,
             updatedAt: Date()  // Update timestamp
+        )
+    }
+
+    /// Updates physical attributes (FitIQ only)
+    ///
+    /// - Parameters:
+    ///   - biologicalSex: New biological sex (optional, keeps existing if nil)
+    ///   - heightCm: New height (optional, keeps existing if nil)
+    /// - Returns: New UserProfile instance with updated physical attributes
+    public func updatingPhysical(
+        biologicalSex: String? = nil,
+        heightCm: Double? = nil
+    ) -> UserProfile {
+        UserProfile(
+            id: self.id,
+            email: self.email,
+            name: self.name,
+            bio: self.bio,
+            username: self.username,
+            languageCode: self.languageCode,
+            dateOfBirth: self.dateOfBirth,
+            biologicalSex: biologicalSex ?? self.biologicalSex,
+            heightCm: heightCm ?? self.heightCm,
+            preferredUnitSystem: self.preferredUnitSystem,
+            hasPerformedInitialHealthKitSync: self.hasPerformedInitialHealthKitSync,
+            lastSuccessfulDailySyncDate: self.lastSuccessfulDailySyncDate,
+            createdAt: self.createdAt,
+            updatedAt: Date()
+        )
+    }
+
+    /// Updates HealthKit sync state (FitIQ only)
+    ///
+    /// - Parameters:
+    ///   - hasPerformedInitialSync: Whether initial sync is complete
+    ///   - lastSyncDate: Date of last successful sync
+    /// - Returns: New UserProfile instance with updated sync state
+    public func updatingHealthKitSync(
+        hasPerformedInitialSync: Bool,
+        lastSyncDate: Date?
+    ) -> UserProfile {
+        UserProfile(
+            id: self.id,
+            email: self.email,
+            name: self.name,
+            bio: self.bio,
+            username: self.username,
+            languageCode: self.languageCode,
+            dateOfBirth: self.dateOfBirth,
+            biologicalSex: self.biologicalSex,
+            heightCm: self.heightCm,
+            preferredUnitSystem: self.preferredUnitSystem,
+            hasPerformedInitialHealthKitSync: hasPerformedInitialSync,
+            lastSuccessfulDailySyncDate: lastSyncDate,
+            createdAt: self.createdAt,
+            updatedAt: Date()
         )
     }
 }
@@ -263,7 +393,15 @@ extension UserProfile {
         case id
         case email
         case name
+        case bio
+        case username
+        case languageCode
         case dateOfBirth
+        case biologicalSex
+        case heightCm
+        case preferredUnitSystem
+        case hasPerformedInitialHealthKitSync
+        case lastSuccessfulDailySyncDate
         case createdAt
         case updatedAt
     }
