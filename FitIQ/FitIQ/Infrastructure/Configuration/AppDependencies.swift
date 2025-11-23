@@ -435,7 +435,16 @@ class AppDependencies: ObservableObject {
             profileMetadataClient: profileMetadataClient
         )
 
-        let healthRepository = HealthKitAdapter()
+        // FitIQCore HealthKit Services (Day 6 - Phase 2.2)
+        let healthStore = HKHealthStore()
+        let healthKitService = HealthKitService(healthStore: healthStore)
+        let healthAuthService = HealthAuthorizationService(healthStore: healthStore)
+
+        let healthRepository = FitIQHealthKitBridge(
+            healthKitService: healthKitService,
+            authService: healthAuthService,
+            userProfile: userProfileStorageAdapter
+        )
 
         let healthKitAuthUseCase = HealthKitAuthorizationUseCase(healthRepository: healthRepository)
 

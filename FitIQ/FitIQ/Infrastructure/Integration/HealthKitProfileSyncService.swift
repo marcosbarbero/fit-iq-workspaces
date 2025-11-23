@@ -42,7 +42,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
     // MARK: - Dependencies
 
     private let profileEventPublisher: ProfileEventPublisherProtocol
-    private let healthKitAdapter: HealthKitAdapter
+    private let healthKitAdapter: HealthRepositoryProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
     private let authManager: AuthManager
 
@@ -54,7 +54,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
 
     init(
         profileEventPublisher: ProfileEventPublisherProtocol,
-        healthKitAdapter: HealthKitAdapter,
+        healthKitAdapter: HealthRepositoryProtocol,
         userProfileStorage: UserProfileStoragePortProtocol,
         authManager: AuthManager
     ) {
@@ -142,7 +142,14 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         // Sync height (can be written to HealthKit)
         if let heightCm = profile.heightCm, heightCm > 0 {
             do {
-                try await healthKitAdapter.saveHeight(heightCm: heightCm)
+                // Convert height to meters and save using the protocol method
+                let heightInMeters = heightCm / 100.0
+                try await healthKitAdapter.saveQuantitySample(
+                    value: heightInMeters,
+                    unit: HKUnit.meter(),
+                    typeIdentifier: .height,
+                    date: Date()
+                )
                 print("HealthKitProfileSyncService: Successfully synced height to HealthKit")
             } catch {
                 print("HealthKitProfileSyncService: Failed to save height to HealthKit: \(error)")
