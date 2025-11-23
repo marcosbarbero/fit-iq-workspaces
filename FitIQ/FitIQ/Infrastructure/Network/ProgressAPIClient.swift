@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Infrastructure adapter for progress tracking API operations
 ///

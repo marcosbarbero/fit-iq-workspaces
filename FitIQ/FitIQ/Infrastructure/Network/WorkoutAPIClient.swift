@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Protocol defining workout API operations
 protocol WorkoutAPIClientProtocol {

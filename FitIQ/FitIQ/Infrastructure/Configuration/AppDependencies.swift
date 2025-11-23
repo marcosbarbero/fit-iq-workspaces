@@ -390,16 +390,16 @@ class AppDependencies: ObservableObject {
 
         let container = buildModelContainer()
         let sharedContext = ModelContext(container)
-        let networkClient = URLSessionNetworkClient()
+        // MARK: - Network Client (FitIQCore)
+        // Use FitIQCore's URLSessionNetworkClient for all network operations
+        let networkClient: NetworkClientProtocol = FitIQCore.URLSessionNetworkClient()
         let keychainAuthTokenAdapter = KeychainAuthTokenAdapter()
 
         // MARK: - FitIQCore Token Refresh Client
-        // Create FitIQCore's network client for token refresh (no apiKey needed in init)
-        let fitIQCoreNetworkClient = FitIQCore.URLSessionNetworkClient()
         let tokenRefreshClient = TokenRefreshClient(
             baseURL: baseURL,
             apiKey: apiKey,
-            networkClient: fitIQCoreNetworkClient,
+            networkClient: networkClient,
             refreshPath: "/api/v1/auth/refresh"
         )
 

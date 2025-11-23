@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Infrastructure adapter for physical profile API operations
 /// Implements PhysicalProfileRepositoryProtocol to communicate with the backend API

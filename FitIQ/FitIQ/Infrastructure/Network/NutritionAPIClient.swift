@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Network client for meal logging API communication
 /// Implements MealLogRemoteAPIProtocol for backend synchronization

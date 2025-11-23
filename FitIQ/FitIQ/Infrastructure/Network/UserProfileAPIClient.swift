@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Infrastructure adapter for user profile API operations
 /// Implements UserProfileRepositoryProtocol to communicate with the backend API

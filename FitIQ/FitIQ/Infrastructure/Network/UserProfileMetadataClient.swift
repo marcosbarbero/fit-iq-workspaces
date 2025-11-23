@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Client for user profile metadata operations
 ///

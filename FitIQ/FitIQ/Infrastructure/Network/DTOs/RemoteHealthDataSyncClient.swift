@@ -1,5 +1,6 @@
 // Infrastructure/Network/RemoteHealthDataSyncClient.swift
 import Foundation
+import FitIQCore
 
 /// Concrete implementation of RemoteHealthDataSyncPort that interacts with the backend REST APIs.
 public final class RemoteHealthDataSyncClient: RemoteHealthDataSyncPort {

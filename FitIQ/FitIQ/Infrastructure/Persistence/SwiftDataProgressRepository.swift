@@ -203,26 +203,6 @@ final class SwiftDataProgressRepository: ProgressLocalStorageProtocol {
 
         print("SwiftDataProgressRepository: ✅ NEW ENTRY - No duplicate found, saving to database")
 
-        // CRITICAL: Check if entry with this exact ID already exists (prevents duplicate registration)
-        do {
-            let entryID = progressEntry.id
-            let idCheckDescriptor = FetchDescriptor<SDProgressEntry>(
-                predicate: #Predicate<SDProgressEntry> { entry in
-                    entry.id == entryID
-                }
-            )
-            if let existingByID = try modelContext.fetch(idCheckDescriptor).first {
-                print(
-                    "SwiftDataProgressRepository: ⚠️ Entry with ID \(progressEntry.id) already exists in database - returning existing ID"
-                )
-                return existingByID.id
-            }
-        } catch {
-            print(
-                "SwiftDataProgressRepository: ⚠️ Failed to check for existing ID: \(error.localizedDescription)"
-            )
-        }
-
         // 1. Fetch user profile
         guard let userUUID = UUID(uuidString: userID) else {
             throw ProgressRepositoryError.saveFailed(
@@ -242,22 +222,48 @@ final class SwiftDataProgressRepository: ProgressLocalStorageProtocol {
                     userInfo: [NSLocalizedDescriptionKey: "User profile not found"]))
         }
 
-        // 2. Convert domain model to SwiftData model
-        let sdProgressEntry = SDProgressEntry(
-            type: progressEntry.type.rawValue,
-            quantity: progressEntry.quantity,
-            date: progressEntry.date,
-            time: progressEntry.time,
-            notes: progressEntry.notes,
-            createdAt: progressEntry.createdAt,
-            updatedAt: Date(),
-            backendID: progressEntry.backendID,
-            syncStatus: progressEntry.syncStatus.rawValue,
-            userProfile: sdUserProfile
+        // 2. CRITICAL FIX: Use fetch-or-create pattern to prevent duplicate registration
+        // Check if entry with this exact ID already exists in context/database
+        let entryID = progressEntry.id
+        let idCheckDescriptor = FetchDescriptor<SDProgressEntry>(
+            predicate: #Predicate<SDProgressEntry> { entry in
+                entry.id == entryID
+            }
         )
-        sdProgressEntry.id = progressEntry.id
 
-        modelContext.insert(sdProgressEntry)
+        let sdProgressEntry: SDProgressEntry
+        if let existingEntry = try modelContext.fetch(idCheckDescriptor).first {
+            // Entry already exists - update it instead of creating new one
+            print(
+                "SwiftDataProgressRepository: ⚠️ Entry with ID \(progressEntry.id) already exists - updating instead of inserting"
+            )
+            sdProgressEntry = existingEntry
+            sdProgressEntry.type = progressEntry.type.rawValue
+            sdProgressEntry.quantity = progressEntry.quantity
+            sdProgressEntry.date = progressEntry.date
+            sdProgressEntry.time = progressEntry.time
+            sdProgressEntry.notes = progressEntry.notes
+            sdProgressEntry.updatedAt = Date()
+            sdProgressEntry.backendID = progressEntry.backendID
+            sdProgressEntry.syncStatus = progressEntry.syncStatus.rawValue
+            sdProgressEntry.userProfile = sdUserProfile
+        } else {
+            // Entry doesn't exist - create new one
+            sdProgressEntry = SDProgressEntry(
+                type: progressEntry.type.rawValue,
+                quantity: progressEntry.quantity,
+                date: progressEntry.date,
+                time: progressEntry.time,
+                notes: progressEntry.notes,
+                createdAt: progressEntry.createdAt,
+                updatedAt: Date(),
+                backendID: progressEntry.backendID,
+                syncStatus: progressEntry.syncStatus.rawValue,
+                userProfile: sdUserProfile
+            )
+            sdProgressEntry.id = progressEntry.id
+            modelContext.insert(sdProgressEntry)
+        }
 
         do {
             try modelContext.save()

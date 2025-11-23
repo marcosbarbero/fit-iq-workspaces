@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Infrastructure adapter for workout template API operations
 ///

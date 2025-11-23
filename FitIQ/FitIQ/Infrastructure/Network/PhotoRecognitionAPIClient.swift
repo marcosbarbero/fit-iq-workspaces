@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Network client for photo recognition API communication
 /// Implements PhotoRecognitionAPIProtocol for backend synchronization

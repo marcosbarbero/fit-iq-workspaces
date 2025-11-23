@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FitIQCore
 
 /// Protocol defining sleep API operations
 protocol SleepAPIClientProtocol {

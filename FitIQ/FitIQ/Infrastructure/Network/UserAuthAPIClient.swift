@@ -33,51 +33,8 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
 
     // MARK: - Helper Methods
 
-    /// Decodes user_id from JWT token payload
-    private func decodeUserIdFromJWT(_ token: String) -> String? {
-        let segments = token.split(separator: ".")
-        guard segments.count == 3 else { return nil }
-
-        let base64String = String(segments[1])
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-
-        // Add padding if needed
-        let paddedLength = base64String.count + (4 - base64String.count % 4) % 4
-        let paddedBase64 = base64String.padding(toLength: paddedLength, withPad: "=", startingAt: 0)
-
-        guard let data = Data(base64Encoded: paddedBase64),
-            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let userId = json["user_id"] as? String
-        else {
-            return nil
-        }
-
-        return userId
-    }
-
-    /// Extracts email from JWT token payload
-    private func extractEmailFromJWT(_ token: String) -> String? {
-        let segments = token.split(separator: ".")
-        guard segments.count == 3 else { return nil }
-
-        let base64String = String(segments[1])
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-
-        // Add padding if needed
-        let paddedLength = base64String.count + (4 - base64String.count % 4) % 4
-        let paddedBase64 = base64String.padding(toLength: paddedLength, withPad: "=", startingAt: 0)
-
-        guard let data = Data(base64Encoded: paddedBase64),
-            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let email = json["email"] as? String
-        else {
-            return nil
-        }
-
-        return email
-    }
+    // JWT parsing is now handled automatically by FitIQCore.AuthToken
+    // No manual parsing needed - AuthToken extracts user_id, email, exp automatically
 
     // MARK: - AuthRepositoryProtocol Conformance
 
@@ -122,6 +79,12 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
             print("UserAuthAPIClient: User successfully registered on remote service.")
             print(
                 "UserAuthAPIClient: Backend returned user_id: \(registerResponse.userId), email: \(registerResponse.email)"
+            )
+
+            // Create AuthToken (automatically parses JWT)
+            let authToken = try AuthToken(
+                accessToken: registerResponse.accessToken,
+                refreshToken: registerResponse.refreshToken
             )
 
             // Backend now creates profile automatically during registration
@@ -209,8 +172,14 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
             // NEW LOG: After successful login with the external service
             print("UserAuthAPIClient: User successfully logged in on remote service.")
 
-            // Decode user_id from JWT token
-            guard let userId = decodeUserIdFromJWT(loginResponseDTO.accessToken) else {
+            // Create AuthToken (automatically parses JWT)
+            let authToken = try AuthToken(
+                accessToken: loginResponseDTO.accessToken,
+                refreshToken: loginResponseDTO.refreshToken
+            )
+
+            // Use parsed user_id from AuthToken
+            guard let userId = authToken.parseUserIdFromJWT() else {
                 print("UserAuthAPIClient: Failed to decode user_id from JWT token")
                 throw APIError.invalidResponse
             }
@@ -224,7 +193,7 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
                     userId: userId, accessToken: loginResponseDTO.accessToken)
                 // Convert DTO to metadata, then compose UserProfile
                 let metadata = try userProfileDTO.toDomain()
-                let email = extractEmailFromJWT(loginResponseDTO.accessToken) ?? credentials.email
+                let email = authToken.parseEmailFromJWT() ?? credentials.email
                 let username = email.components(separatedBy: "@").first ?? email
                 userProfile = UserProfile(
                     metadata: metadata,
@@ -242,9 +211,8 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
                             "UserAuthAPIClient: User endpoint not available (404). Constructing minimal profile from JWT..."
                         )
 
-                        // Extract email from JWT if available
-                        let email =
-                            extractEmailFromJWT(loginResponseDTO.accessToken) ?? credentials.email
+                        // Extract email from AuthToken if available
+                        let email = authToken.parseEmailFromJWT() ?? credentials.email
                         let username = email.components(separatedBy: "@").first ?? email
 
                         // Create minimal metadata from JWT
