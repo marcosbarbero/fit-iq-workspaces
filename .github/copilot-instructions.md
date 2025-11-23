@@ -180,10 +180,30 @@ FitIQ-iOS/
    - Update typealiases in `PersistenceHelper` for new versions
    - Document schema changes properly
 
-8. **❌ NEVER place markdown files directly in project root**
-   - All markdown files MUST be in `./docs` directories
-   - Organize by domain/feature in subdirectories (e.g., `docs/architecture/`, `docs/features/`)
-   - Exception: README.md in project root is REQUIRED
+8. **❌ NEVER place documentation files in project root directories**
+   - **CRITICAL:** All markdown files MUST be in appropriate `docs/` directories
+   - **NEVER** place `.md` files directly in project root (e.g., `/Users/.../fit-iq-workspaces/lume/`, `/Users/.../fit-iq-workspaces/FitIQ/`)
+   - **Exception:** `README.md` in each project root is REQUIRED and ALLOWED
+   
+   **Documentation Placement Rules:**
+   - **FitIQ-specific docs** → `FitIQ/docs/` (organized in subdirectories)
+   - **Lume-specific docs** → `lume/docs/` (organized in subdirectories)
+   - **FitIQCore-specific docs** → `FitIQCore/docs/` (organized in subdirectories)
+   - **Workspace/cross-project docs** → `docs/` at workspace root (organized in subdirectories)
+   
+   **Subdirectory Organization:**
+   - Use descriptive subdirectories: `architecture/`, `features/`, `fixes/`, `troubleshooting/`, `api-integration/`, etc.
+   - Keep related docs together in the same subdirectory
+   - Never create loose `.md` files at any root level (except README.md)
+   
+   **Examples:**
+   - ✅ `FitIQ/docs/fixes/CAMERA_FIX_V2.md`
+   - ✅ `lume/docs/troubleshooting/WORKSPACE_PHANTOM_FILES_RESOLUTION.md`
+   - ✅ `docs/split-strategy/IMPLEMENTATION_STATUS.md`
+   - ✅ `FitIQ/README.md` (exception)
+   - ❌ `FitIQ/CAMERA_FIX_V2.md` (root level - WRONG)
+   - ❌ `lume/STATUS_REPORT.md` (root level - WRONG)
+   - ❌ `FitIQ/docs/STATUS.md` (no subdirectory - WRONG, should be in docs/status/ or docs/troubleshooting/)
 
 ---
 
@@ -1146,7 +1166,13 @@ When implementing a new feature:
 - [ ] Verified configuration in config.plist
 - [ ] No hardcoded secrets or config
 - [ ] No UI layout/styling changes
-- [ ] Documentation placed in appropriate subdirectory under `docs/` (not in project root)
+- [ ] **Documentation placed correctly:**
+  - [ ] FitIQ-specific docs → `FitIQ/docs/[subdirectory]/`
+  - [ ] Lume-specific docs → `lume/docs/[subdirectory]/`
+  - [ ] FitIQCore-specific docs → `FitIQCore/docs/[subdirectory]/`
+  - [ ] Cross-project docs → `docs/[subdirectory]/`
+  - [ ] NEVER in project root (except README.md)
+  - [ ] Always organized in descriptive subdirectories (architecture/, fixes/, troubleshooting/, etc.)
 
 ---
 
