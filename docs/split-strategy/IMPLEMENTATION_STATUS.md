@@ -201,53 +201,54 @@ Migrate FitIQ from its complex composite UserProfile model (UserProfileMetadata 
 
 ---
 
-#### Phase 2.2: HealthKit Extraction ⏳ PENDING (Week 2-3)
+#### Phase 2.2: HealthKit Extraction 📋 PLANNING COMPLETE (Week 2-3)
 
-**Duration:** 1-2 weeks (estimated)  
-**Status:** ⏳ Pending (Phase 2.1 complete, ready to start)
+**Duration:** 2-3 weeks (estimated)  
+**Status:** 📋 Planning Complete - Ready to Start
 
 **Summary:**
-Both FitIQ and Lume successfully integrated with FitIQCore, eliminating code duplication and establishing consistent authentication and networking behavior.
+Extract HealthKit abstractions from FitIQ to FitIQCore, enabling Lume to use HealthKit for mindfulness tracking (meditation, breathing exercises) while maintaining FitIQ's fitness-specific implementations.
 
-**Deliverables:**
-- ✅ Lume integrated with FitIQCore (30 files, 125 lines removed)
-- ✅ FitIQ integrated with FitIQCore (19 files, 51 lines removed)
-- ✅ Zero compilation errors or warnings
-- ✅ Total: 176 lines of duplicated code removed
-- ✅ Both apps using FitIQCore v0.2.0
+**Planning Deliverables:**
+- ✅ Comprehensive architecture design documented
+- ✅ Shared vs app-specific components identified
+- ✅ 3-week implementation plan with daily breakdown
+- ✅ Risk assessment and mitigation strategies
+- ✅ Success metrics defined
+- ✅ Testing strategy outlined
+- ✅ Migration path planned (zero breaking changes)
 
-**Lume Changes:**
-- ✅ Replaced local AuthToken with FitIQCore.AuthToken
-- ✅ Using FitIQCore.URLSessionNetworkClient
-- ✅ Using FitIQCore.TokenRefreshClient
-- ✅ Outbox Pattern migrated to FitIQCore
-- ✅ Deleted local authentication implementations
-- ✅ 30 files now import FitIQCore
+**Scope:**
+- Extract HealthKit authorization protocols to FitIQCore
+- Create shared health data models (HealthDataType, HealthMetric)
+- Implement base HealthKitService in FitIQCore
+- Migrate FitIQ to use FitIQCore HealthKit abstractions
+- Enable Lume mindfulness features via HealthKit
+- Maintain all existing FitIQ fitness tracking functionality
 
-**FitIQ Changes:**
-- ✅ Already using FitIQCore.AuthToken with automatic JWT parsing
-- ✅ Re-exported NetworkClientProtocol from FitIQCore
-- ✅ Updated AppDependencies to use FitIQCore.URLSessionNetworkClient
-- ✅ Deleted local URLSessionNetworkClient implementation
-- ✅ All API clients now use FitIQCore infrastructure
-- ✅ 19 files now import FitIQCore
+**Key Architecture Decisions:**
+- FitIQCore provides base HealthKit abstractions
+- Apps extend with specific implementations
+- Shared: Authorization, queries, basic data types
+- App-specific: Sync logic, backend integration, feature-specific calculations
 
-**Time Efficiency:**
-- Estimated: 30-44 hours
-- Actual: 90 minutes
-- **48x faster than estimated!**
+**Deliverables (Planned):**
+- FitIQCore Health module with protocols and implementations
+- FitIQ migrated to FitIQCore HealthKit (backward compatible)
+- Lume HealthKit integration for mindfulness tracking
+- Comprehensive test coverage
+- Complete documentation
 
 **Documentation:**
-- [Phase 1.5 Status](./PHASE_1_5_STATUS.md)
-- [Phase 1.5 Complete](./PHASE_1_5_COMPLETE.md)
-- [Lume Migration Complete](./LUME_MIGRATION_COMPLETE.md)
-- [Lume Integration Guide](./LUME_INTEGRATION_GUIDE.md)
-- [FitIQ Integration Guide](./FITIQ_INTEGRATION_GUIDE.md)
+- [Phase 2.2 HealthKit Extraction Plan](./PHASE_2.2_HEALTHKIT_EXTRACTION_PLAN.md) - Complete implementation guide
+- [Phase 2.1 Final Status](../FitIQ/docs/fixes/PHASE_2.1_FINAL_STATUS.md) - Previous phase completion
+- [Phase 2.1 Cleanup](../FitIQ/docs/fixes/PHASE_2.1_CLEANUP_COMPLETION.md) - Profile unification details
 
 **Next Steps:**
-1. Deploy both apps to TestFlight
-2. End-to-end testing in production
-3. Begin Phase 2 planning (HealthKit & Profile extraction)
+1. Team review of Phase 2.2 plan
+2. Validate Phase 2.1 in TestFlight
+3. Begin Phase 2.2 implementation (Week 1: Foundation)
+4. Create FitIQCore Health module structure
 
 ---
 
