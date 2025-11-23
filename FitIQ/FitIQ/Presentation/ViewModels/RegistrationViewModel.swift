@@ -5,6 +5,7 @@
 //
 
 import Combine
+import FitIQCore
 import Foundation
 
 // MARK: - Example Usage in a ViewModel
@@ -20,7 +21,7 @@ class RegistrationViewModel: ObservableObject {
 
     @Published var isLoading = false
     @Published var registrationMessage: String?
-    @Published var registeredUser: UserProfile?
+    @Published var registeredUser: FitIQCore.UserProfile?
     @Published var registrationSuccessful = false  // NEW: Added this property
 
     init(

@@ -1,4 +1,5 @@
 // Domain/UseCases/PerformInitialHealthKitSyncUseCase.swift
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -61,23 +62,21 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
             )
 
             // Create a minimal profile with just the user ID
-            let minimalProfile = UserProfile(
-                metadata: UserProfileMetadata(
-                    id: UUID(),  // New profile ID
-                    userId: userID,  // Use the authenticated user ID
-                    name: "User",  // Placeholder name
-                    bio: nil,
-                    preferredUnitSystem: "metric",
-                    languageCode: "en",
-                    dateOfBirth: nil,
-                    createdAt: Date(),
-                    updatedAt: Date()
-                ),
-                physical: nil,
-                email: nil,
+            let minimalProfile = FitIQCore.UserProfile(
+                id: userID,
+                email: "unknown@example.com",  // Placeholder
+                name: "User",  // Placeholder name
+                bio: nil,
                 username: nil,
+                languageCode: "en",
+                dateOfBirth: nil,
+                biologicalSex: nil,
+                heightCm: nil,
+                preferredUnitSystem: "metric",
                 hasPerformedInitialHealthKitSync: false,
-                lastSuccessfulDailySyncDate: nil
+                lastSuccessfulDailySyncDate: nil,
+                createdAt: Date(),
+                updatedAt: Date()
             )
 
             // Save the minimal profile
@@ -226,9 +225,23 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
             print("PerformInitialHealthKitSyncUseCase: Daily sync completed successfully.")
 
             // STEP 5: Update the flag on the user profile and save it AFTER all syncs are successful
-            profile.hasPerformedInitialHealthKitSync = true
-            profile.lastSuccessfulDailySyncDate = now  // Also update the last daily sync date
-            try await userProfileStorage.save(userProfile: profile)
+            let updatedProfile = FitIQCore.UserProfile(
+                id: profile.id,
+                email: profile.email,
+                name: profile.name,
+                bio: profile.bio,
+                username: profile.username,
+                languageCode: profile.languageCode,
+                dateOfBirth: profile.dateOfBirth,
+                biologicalSex: profile.biologicalSex,
+                heightCm: profile.heightCm,
+                preferredUnitSystem: profile.preferredUnitSystem,
+                hasPerformedInitialHealthKitSync: true,
+                lastSuccessfulDailySyncDate: now,
+                createdAt: profile.createdAt,
+                updatedAt: Date()
+            )
+            try await userProfileStorage.save(userProfile: updatedProfile)
 
             print(
                 "PerformInitialHealthKitSyncUseCase: Initial HealthKit setup (auth + historical + daily sync) completed successfully for user \(userID)."

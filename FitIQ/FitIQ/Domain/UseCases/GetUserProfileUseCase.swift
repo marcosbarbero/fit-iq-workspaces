@@ -1,8 +1,9 @@
 // Domain/UseCases/GetUserProfileUseCase.swift
+import FitIQCore
 import Foundation
 
 public protocol GetUserProfileUseCaseProtocol {
-    func execute(forUserID userID: UUID) async throws -> UserProfile?
+    func execute(forUserID userID: UUID) async throws -> FitIQCore.UserProfile?
 }
 
 public final class GetUserProfileUseCase: GetUserProfileUseCaseProtocol {
@@ -14,7 +15,7 @@ public final class GetUserProfileUseCase: GetUserProfileUseCaseProtocol {
         self.authManager = authManager
     }
 
-    public func execute(forUserID userID: UUID) async throws -> UserProfile? {
+    public func execute(forUserID userID: UUID) async throws -> FitIQCore.UserProfile? {
         guard userID == authManager.currentUserProfileID else {
             print("GetUserProfileUseCase: Attempt to fetch profile for a different user ID than current authenticated user.")
             // Potentially throw an error or return nil based on security requirements
@@ -22,9 +23,9 @@ public final class GetUserProfileUseCase: GetUserProfileUseCaseProtocol {
         }
         return try await userProfileStorage.fetch(forUserID: userID)
     }
-    
+
     // Convenience method to fetch for the current authenticated user
-    public func executeForCurrentUser() async throws -> UserProfile? {
+    public func executeForCurrentUser() async throws -> FitIQCore.UserProfile? {
         guard let currentUserID = authManager.currentUserProfileID else {
             print("GetUserProfileUseCase: No authenticated user ID.")
             throw UserProfileError.notAuthenticated
@@ -35,7 +36,7 @@ public final class GetUserProfileUseCase: GetUserProfileUseCaseProtocol {
 
 public enum UserProfileError: Error, LocalizedError {
     case notAuthenticated
-    
+
     public var errorDescription: String? {
         switch self {
         case .notAuthenticated:
@@ -43,4 +44,3 @@ public enum UserProfileError: Error, LocalizedError {
         }
     }
 }
-

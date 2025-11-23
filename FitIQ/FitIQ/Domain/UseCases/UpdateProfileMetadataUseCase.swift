@@ -3,9 +3,10 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 27/01/2025.
-//  Part of Profile Edit Implementation
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
+import FitIQCore
 import Foundation
 
 // MARK: - Use Case Protocol
@@ -20,10 +21,11 @@ import Foundation
 /// **Backend Endpoint:** PUT `/api/v1/users/me`
 ///
 /// **Related Models:**
-/// - `UserProfileMetadata` - Domain entity
+/// - `FitIQCore.UserProfile` - Domain entity
 /// - `UserProfileStoragePortProtocol` - Local storage port
 /// - `ProfileEventPublisherProtocol` - Event publisher port
 ///
+/// **Phase 2.1 Migration:** Now uses FitIQCore.UserProfile
 protocol UpdateProfileMetadataUseCase {
     /// Updates the user's profile metadata
     ///
@@ -35,7 +37,7 @@ protocol UpdateProfileMetadataUseCase {
     ///   - bio: Biography/description (optional)
     ///   - preferredUnitSystem: "metric" or "imperial" (optional)
     ///   - languageCode: ISO 639-1 language code (optional)
-    /// - Returns: Updated UserProfile with new metadata
+    /// - Returns: Updated FitIQCore.UserProfile
     /// - Throws: Error if validation fails or update fails
     func execute(
         userId: String,
@@ -43,7 +45,7 @@ protocol UpdateProfileMetadataUseCase {
         bio: String?,
         preferredUnitSystem: String?,
         languageCode: String?
-    ) async throws -> UserProfile
+    ) async throws -> FitIQCore.UserProfile
 }
 
 // MARK: - Use Case Implementation
@@ -81,7 +83,7 @@ final class UpdateProfileMetadataUseCaseImpl: UpdateProfileMetadataUseCase {
         bio: String?,
         preferredUnitSystem: String?,
         languageCode: String?
-    ) async throws -> UserProfile {
+    ) async throws -> FitIQCore.UserProfile {
         print("UpdateProfileMetadataUseCase: Executing for userId: \(userId)")
 
         // Validate user ID
@@ -134,31 +136,77 @@ final class UpdateProfileMetadataUseCaseImpl: UpdateProfileMetadataUseCase {
             throw MetadataUpdateValidationError.profileNotFound(userId)
         }
 
-        // Create updated metadata by merging new values with existing
-        let updatedMetadata = UserProfileMetadata(
-            id: currentProfile.metadata.id,
-            userId: currentProfile.metadata.userId,
-            name: name ?? currentProfile.metadata.name,
-            bio: bio ?? currentProfile.metadata.bio,
-            preferredUnitSystem: preferredUnitSystem ?? currentProfile.metadata.preferredUnitSystem,
-            languageCode: languageCode ?? currentProfile.metadata.languageCode,
-            dateOfBirth: currentProfile.metadata.dateOfBirth,
-            createdAt: currentProfile.metadata.createdAt,
-            updatedAt: Date()  // Update timestamp
+        // Create updated profile by merging new values with existing
+        let updatedProfile = currentProfile.updated(
+            email: currentProfile.email,
+            name: name ?? currentProfile.name,
+            dateOfBirth: currentProfile.dateOfBirth
         )
 
-        // Validate the updated metadata
-        let validationErrors = updatedMetadata.validate()
+        // Apply additional optional fields
+        var finalProfile = updatedProfile
+        if let bio = bio {
+            finalProfile = FitIQCore.UserProfile(
+                id: finalProfile.id,
+                email: finalProfile.email,
+                name: finalProfile.name,
+                bio: bio,
+                username: finalProfile.username,
+                languageCode: languageCode ?? finalProfile.languageCode,
+                dateOfBirth: finalProfile.dateOfBirth,
+                biologicalSex: finalProfile.biologicalSex,
+                heightCm: finalProfile.heightCm,
+                preferredUnitSystem: preferredUnitSystem ?? finalProfile.preferredUnitSystem,
+                hasPerformedInitialHealthKitSync: finalProfile.hasPerformedInitialHealthKitSync,
+                lastSuccessfulDailySyncDate: finalProfile.lastSuccessfulDailySyncDate,
+                createdAt: finalProfile.createdAt,
+                updatedAt: Date()
+            )
+        } else if let languageCode = languageCode {
+            finalProfile = FitIQCore.UserProfile(
+                id: finalProfile.id,
+                email: finalProfile.email,
+                name: finalProfile.name,
+                bio: finalProfile.bio,
+                username: finalProfile.username,
+                languageCode: languageCode,
+                dateOfBirth: finalProfile.dateOfBirth,
+                biologicalSex: finalProfile.biologicalSex,
+                heightCm: finalProfile.heightCm,
+                preferredUnitSystem: preferredUnitSystem ?? finalProfile.preferredUnitSystem,
+                hasPerformedInitialHealthKitSync: finalProfile.hasPerformedInitialHealthKitSync,
+                lastSuccessfulDailySyncDate: finalProfile.lastSuccessfulDailySyncDate,
+                createdAt: finalProfile.createdAt,
+                updatedAt: Date()
+            )
+        } else if let preferredUnitSystem = preferredUnitSystem {
+            finalProfile = FitIQCore.UserProfile(
+                id: finalProfile.id,
+                email: finalProfile.email,
+                name: finalProfile.name,
+                bio: finalProfile.bio,
+                username: finalProfile.username,
+                languageCode: finalProfile.languageCode,
+                dateOfBirth: finalProfile.dateOfBirth,
+                biologicalSex: finalProfile.biologicalSex,
+                heightCm: finalProfile.heightCm,
+                preferredUnitSystem: preferredUnitSystem,
+                hasPerformedInitialHealthKitSync: finalProfile.hasPerformedInitialHealthKitSync,
+                lastSuccessfulDailySyncDate: finalProfile.lastSuccessfulDailySyncDate,
+                createdAt: finalProfile.createdAt,
+                updatedAt: Date()
+            )
+        }
+
+        // Validate the updated profile
+        let validationErrors = finalProfile.validate()
         guard validationErrors.isEmpty else {
             throw MetadataUpdateValidationError.validationFailed(validationErrors)
         }
 
-        // Create updated profile with new metadata
-        let updatedProfile = currentProfile.updatingMetadata(updatedMetadata)
-
         // Save to local storage (offline-first)
         do {
-            try await userProfileStorage.save(userProfile: updatedProfile)
+            try await userProfileStorage.save(userProfile: finalProfile)
             print("UpdateProfileMetadataUseCase: Successfully saved updated metadata locally")
         } catch {
             print("UpdateProfileMetadataUseCase: Failed to save metadata: \(error)")
@@ -173,7 +221,7 @@ final class UpdateProfileMetadataUseCaseImpl: UpdateProfileMetadataUseCase {
         eventPublisher.publish(event: event)
         print("UpdateProfileMetadataUseCase: Published metadataUpdated event")
 
-        return updatedProfile
+        return finalProfile
     }
 }
 
@@ -189,7 +237,7 @@ enum MetadataUpdateValidationError: Error, LocalizedError {
     case invalidUnitSystem(String)
     case invalidLanguageCode(String)
     case profileNotFound(String)
-    case validationFailed([UserProfileMetadata.ValidationError])
+    case validationFailed([FitIQCore.UserProfile.ValidationError])
     case saveFailed(Error)
 
     var errorDescription: String? {

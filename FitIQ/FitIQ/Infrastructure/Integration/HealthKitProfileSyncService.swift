@@ -7,6 +7,7 @@
 //
 
 import Combine
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -131,12 +132,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         }
     }
 
-    private func syncPhysicalProfileToHealthKit(profile: UserProfile) async throws {
-        guard let physical = profile.physical else {
-            print("HealthKitProfileSyncService: No physical profile to sync")
-            return
-        }
-
+    private func syncPhysicalProfileToHealthKit(profile: FitIQCore.UserProfile) async throws {
         // Check if HealthKit is available
         guard healthKitAdapter.isHealthDataAvailable() else {
             print("HealthKitProfileSyncService: HealthKit not available on this device")
@@ -144,7 +140,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         }
 
         // Sync height (can be written to HealthKit)
-        if let heightCm = physical.heightCm, heightCm > 0 {
+        if let heightCm = profile.heightCm, heightCm > 0 {
             do {
                 try await healthKitAdapter.saveHeight(heightCm: heightCm)
                 print("HealthKitProfileSyncService: Successfully synced height to HealthKit")
@@ -156,25 +152,25 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
 
         // Date of birth and biological sex are READ-ONLY in HealthKit
         // Log informational messages about these fields
-        if let dob = physical.dateOfBirth {
+        if let dob = profile.dateOfBirth {
             print(
                 "HealthKitProfileSyncService: Date of birth (\(dob)) cannot be written to HealthKit (user must set in Health app)"
             )
         }
 
-        if let sex = physical.biologicalSex {
+        if let sex = profile.biologicalSex {
             print(
                 "HealthKitProfileSyncService: Biological sex (\(sex)) cannot be written to HealthKit (user must set in Health app)"
             )
         }
 
         // Verify HealthKit data matches (for date of birth and biological sex)
-        await verifyHealthKitAlignment(physical: physical)
+        await verifyHealthKitAlignment(profile: profile)
     }
 
-    private func verifyHealthKitAlignment(physical: PhysicalProfile) async {
+    private func verifyHealthKitAlignment(profile: FitIQCore.UserProfile) async {
         // Check if date of birth matches
-        if let profileDob = physical.dateOfBirth {
+        if let profileDob = profile.dateOfBirth {
             do {
                 if let healthKitDob = try await healthKitAdapter.fetchDateOfBirth() {
                     let calendar = Calendar.current
@@ -199,7 +195,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         }
 
         // Check if biological sex matches
-        if let profileSex = physical.biologicalSex {
+        if let profileSex = profile.biologicalSex {
             do {
                 if let healthKitSex = try await healthKitAdapter.fetchBiologicalSex() {
                     let healthKitSexString = biologicalSexToString(healthKitSex)

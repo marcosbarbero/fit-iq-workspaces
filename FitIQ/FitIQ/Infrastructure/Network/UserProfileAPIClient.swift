@@ -5,8 +5,8 @@
 //  Created by AI Assistant on 27/01/2025.
 //
 
-import Foundation
 import FitIQCore
+import Foundation
 
 /// Infrastructure adapter for user profile API operations
 /// Implements UserProfileRepositoryProtocol to communicate with the backend API
@@ -19,35 +19,25 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
     private let apiKey: String
     private let authTokenPersistence: AuthTokenPersistencePortProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
-    private let physicalProfileRepository: PhysicalProfileRepositoryProtocol
 
     // MARK: - Initialization
 
     init(
         networkClient: NetworkClientProtocol = URLSessionNetworkClient(),
         authTokenPersistence: AuthTokenPersistencePortProtocol,
-        userProfileStorage: UserProfileStoragePortProtocol,
-        physicalProfileRepository: PhysicalProfileRepositoryProtocol? = nil
+        userProfileStorage: UserProfileStoragePortProtocol
     ) {
         self.networkClient = networkClient
         self.authTokenPersistence = authTokenPersistence
         self.userProfileStorage = userProfileStorage
         self.baseURL = ConfigurationProperties.value(for: "BACKEND_BASE_URL") ?? ""
         self.apiKey = ConfigurationProperties.value(for: "API_KEY") ?? ""
-
-        // If no physical profile repository provided, create default
-        self.physicalProfileRepository =
-            physicalProfileRepository
-            ?? PhysicalProfileAPIClient(
-                networkClient: networkClient,
-                authTokenPersistence: authTokenPersistence
-            )
     }
 
     // MARK: - UserProfileRepositoryProtocol Implementation
 
     /// Fetches the user profile from the backend using /api/v1/users/me endpoint
-    func getUserProfile(userId: String) async throws -> UserProfile {
+    func getUserProfile(userId: String) async throws -> FitIQCore.UserProfile {
         print("UserProfileAPIClient: Fetching current user profile from /api/v1/users/me")
 
         // Get access token
@@ -78,50 +68,41 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
             throw APIError.apiError(statusCode: statusCode, message: "Failed to fetch user profile")
         }
 
-        // Decode response
+        // Get stored profile for local state (email, HealthKit sync flags)
+        // Parse userId from response to lookup stored profile
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let tempDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
+        guard let userUUID = UUID(uuidString: tempDTO.userId) else {
+            throw APIError.invalidResponse
+        }
+        let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
+        let email = storedProfile?.email
+        let hasPerformedInitialHealthKitSync =
+            storedProfile?.hasPerformedInitialHealthKitSync ?? false
+        let lastSuccessfulDailySyncDate = storedProfile?.lastSuccessfulDailySyncDate
+
+        // Decode response and convert to FitIQCore.UserProfile
+        let profile: FitIQCore.UserProfile
         do {
             let successResponse = try decoder.decode(
                 StandardResponse<UserProfileResponseDTO>.self, from: data)
-            metadata = try successResponse.data.toDomain()
+            profile = try successResponse.data.toDomain(
+                email: email,
+                hasPerformedInitialHealthKitSync: hasPerformedInitialHealthKitSync,
+                lastSuccessfulDailySyncDate: lastSuccessfulDailySyncDate
+            )
             print("UserProfileAPIClient: Successfully fetched user profile from /me")
         } catch {
             print(
                 "UserProfileAPIClient: Failed to decode wrapped response, trying direct decode...")
             let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
+            profile = try profileDTO.toDomain(
+                email: email,
+                hasPerformedInitialHealthKitSync: hasPerformedInitialHealthKitSync,
+                lastSuccessfulDailySyncDate: lastSuccessfulDailySyncDate
+            )
             print("UserProfileAPIClient: Successfully fetched user profile from /me")
         }
-
-        // Try to get email from stored profile (local state)
-        // We need to extract userId from metadata to fetch stored profile
-        let storedProfile = try? await userProfileStorage.fetch(forUserID: metadata.userId)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
-
-        // Fetch physical profile from separate endpoint
-        var physical: PhysicalProfile? = nil
-        do {
-            physical = try await physicalProfileRepository.getPhysicalProfile(userId: userId)
-            print("UserProfileAPIClient: Successfully fetched physical profile")
-        } catch {
-            print(
-                "UserProfileAPIClient: Physical profile not available: \(error.localizedDescription)"
-            )
-            // Physical profile is optional, continue without it
-        }
-
-        // Compose UserProfile from metadata + physical
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
-            hasPerformedInitialHealthKitSync: storedProfile?.hasPerformedInitialHealthKitSync
-                ?? false,
-            lastSuccessfulDailySyncDate: storedProfile?.lastSuccessfulDailySyncDate
-        )
 
         return profile
     }
@@ -135,7 +116,7 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
         height: Double?,
         weight: Double?,
         activityLevel: String?
-    ) async throws -> UserProfile {
+    ) async throws -> FitIQCore.UserProfile {
         print("UserProfileAPIClient: Updating user profile via /api/v1/users/me")
 
         // Get access token
@@ -211,44 +192,31 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
 
         // Decode response
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let metadata: UserProfileResponseDTO
         do {
             let successResponse = try decoder.decode(
                 StandardResponse<UserProfileResponseDTO>.self, from: data)
-            metadata = try successResponse.data.toDomain()
+            metadata = successResponse.data
             print("UserProfileAPIClient: Successfully updated user profile")
         } catch {
             print(
                 "UserProfileAPIClient: Failed to decode wrapped response, trying direct decode...")
-            let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
+            metadata = try decoder.decode(UserProfileResponseDTO.self, from: data)
             print("UserProfileAPIClient: Successfully updated user profile")
         }
 
-        // Try to get email from stored profile (local state)
-        // We need to extract userId from metadata to fetch stored profile
-        let storedProfile = try? await userProfileStorage.fetch(forUserID: metadata.userId)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
-
-        // Fetch physical profile from separate endpoint
-        var physical: PhysicalProfile? = nil
-        do {
-            physical = try await physicalProfileRepository.getPhysicalProfile(userId: userId)
-            print("UserProfileAPIClient: Successfully fetched physical profile after update")
-        } catch {
-            print(
-                "UserProfileAPIClient: Physical profile not available: \(error.localizedDescription)"
-            )
-            // Physical profile is optional, continue without it
+        // Get the backend DTO and convert to unified UserProfile
+        // Extract userId from metadata
+        guard let userUUID = UUID(uuidString: userId) else {
+            throw APIError.invalidURL
         }
 
-        // Compose UserProfile from metadata + physical
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
+        // Fetch stored profile to preserve email and HealthKit sync state
+        let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
+
+        // Use DTO's toDomain() method with preserved local state
+        let profile = try metadata.toDomain(
+            email: storedProfile?.email,
             hasPerformedInitialHealthKitSync: storedProfile?.hasPerformedInitialHealthKitSync
                 ?? false,
             lastSuccessfulDailySyncDate: storedProfile?.lastSuccessfulDailySyncDate
@@ -267,7 +235,7 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
         bio: String?,
         preferredUnitSystem: String,
         languageCode: String?
-    ) async throws -> UserProfile {
+    ) async throws -> FitIQCore.UserProfile {
         print("UserProfileAPIClient: Updating profile metadata via /api/v1/users/me")
 
         // Get access token
@@ -332,45 +300,30 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
         // Decode response
         // Backend returns: {"data": {"profile": {...}}}
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let metadata: UserProfileResponseDTO
         do {
             let successResponse = try decoder.decode(
                 StandardResponse<UserProfileDataWrapper>.self, from: data)
-            metadata = try successResponse.data.profile.toDomain()
+            metadata = try successResponse.data.profile
             print("UserProfileAPIClient: Successfully decoded wrapped profile response")
         } catch {
             print(
                 "UserProfileAPIClient: Failed to decode with wrapper, trying direct profile decode..."
             )
             // Fallback: try decoding profile directly (for backward compatibility)
-            let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
+            metadata = try decoder.decode(UserProfileResponseDTO.self, from: data)
             print("UserProfileAPIClient: Successfully decoded direct profile response")
         }
 
-        // Get stored profile for email/username
-        let storedProfile = try? await userProfileStorage.fetch(forUserID: metadata.userId)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
-
-        // Fetch physical profile from separate endpoint
-        var physical: PhysicalProfile? = nil
-        do {
-            physical = try await physicalProfileRepository.getPhysicalProfile(userId: userId)
-            print(
-                "UserProfileAPIClient: Successfully fetched physical profile after metadata update")
-        } catch {
-            print(
-                "UserProfileAPIClient: Physical profile not available: \(error.localizedDescription)"
-            )
+        // Get stored profile to preserve email and HealthKit sync state
+        guard let userUUID = UUID(uuidString: userId) else {
+            throw APIError.invalidURL
         }
+        let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
 
-        // Compose UserProfile from metadata + physical
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
+        // Use DTO's toDomain() method with preserved local state
+        let profile = try metadata.toDomain(
+            email: storedProfile?.email,
             hasPerformedInitialHealthKitSync: storedProfile?.hasPerformedInitialHealthKitSync
                 ?? false,
             lastSuccessfulDailySyncDate: storedProfile?.lastSuccessfulDailySyncDate
@@ -400,7 +353,7 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
         preferredUnitSystem: String,
         languageCode: String?,
         dateOfBirth: Date?
-    ) async throws -> UserProfile {
+    ) async throws -> FitIQCore.UserProfile {
         print("UserProfileAPIClient: ===== CREATE PROFILE ON BACKEND =====")
         print("UserProfileAPIClient: Creating profile for user \(userId)")
 
@@ -476,49 +429,31 @@ final class UserProfileAPIClient: UserProfileRepositoryProtocol {
 
         // Decode response
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let metadata: UserProfileResponseDTO
         do {
             let successResponse = try decoder.decode(
-                StandardResponse<UserProfileResponseDTO>.self, from: data)
-            metadata = try successResponse.data.toDomain()
+                StandardResponse<UserProfileDataWrapper>.self, from: data)
+            metadata = successResponse.data.profile
             print("UserProfileAPIClient: ✅ Profile created successfully (wrapped response)")
         } catch {
             print("UserProfileAPIClient: Trying direct decode...")
-            let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
+            metadata = try decoder.decode(UserProfileResponseDTO.self, from: data)
             print("UserProfileAPIClient: ✅ Profile created successfully (direct response)")
         }
 
-        // Get stored profile for email/username
+        // Get stored profile to preserve email
         guard let userUUID = UUID(uuidString: userId) else {
-            throw APIError.invalidUserId
+            throw APIError.invalidURL
         }
         let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
 
-        // Create physical profile with DOB if provided
-        var physical: PhysicalProfile? = nil
-        if let dateOfBirth = dateOfBirth {
-            physical = PhysicalProfile(
-                biologicalSex: nil,
-                heightCm: nil,
-                dateOfBirth: dateOfBirth
-            )
-            print("UserProfileAPIClient: Created physical profile with DOB: \(dateOfBirth)")
-        }
-
-        // Compose UserProfile
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
-            hasPerformedInitialHealthKitSync: false,
+        // Use DTO's toDomain() method
+        let profile = try metadata.toDomain(
+            email: storedProfile?.email,
+            hasPerformedInitialHealthKitSync: false,  // New profile, no sync yet
             lastSuccessfulDailySyncDate: nil
         )
 
-        print("UserProfileAPIClient: ===== PROFILE CREATION COMPLETE =====")
         return profile
     }
 

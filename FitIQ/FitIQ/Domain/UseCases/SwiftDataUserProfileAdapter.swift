@@ -3,9 +3,11 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 27/01/2025.
-//  Rewritten to support new UserProfile domain model with metadata and physical profile
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
+//  Now uses FitIQCore.UserProfile as the single source of truth
 //
 
+import FitIQCore
 import Foundation
 import SwiftData
 
@@ -33,8 +35,14 @@ enum UserProfileStorageError: Error, LocalizedError {
 /// Adapter that implements UserProfileStoragePortProtocol using SwiftData
 ///
 /// Maps between:
-/// - Domain: UserProfile (with metadata + physical)
-/// - SwiftData: SDUserProfile
+/// - Domain: FitIQCore.UserProfile (unified profile model)
+/// - SwiftData: SDUserProfile (SchemaV10)
+///
+/// **Phase 2.1 Migration:**
+/// - Removed old composite UserProfile (metadata + physical)
+/// - Now uses FitIQCore.UserProfile directly
+/// - SDUserProfile schema remains unchanged
+/// - Only mapping logic updated
 ///
 /// **Architecture:** Infrastructure Adapter (Hexagonal Architecture)
 final class SwiftDataUserProfileAdapter: UserProfileStoragePortProtocol {
@@ -53,13 +61,14 @@ final class SwiftDataUserProfileAdapter: UserProfileStoragePortProtocol {
 
     /// Saves or updates a user profile
     ///
-    /// Maps UserProfile domain model to SDUserProfile SwiftData model.
+    /// Maps FitIQCore.UserProfile domain model to SDUserProfile SwiftData model.
+    /// Uses fetch-or-create pattern to prevent duplicates.
     /// If profile exists (by userId), updates it. Otherwise creates new.
-    func save(userProfile: UserProfile) async throws {
+    func save(userProfile: FitIQCore.UserProfile) async throws {
         let context = ModelContext(modelContainer)
 
-        // Use userId (not id) to find existing profile
-        let userId = userProfile.userId
+        // Use profile.id as userId (FitIQCore.UserProfile.id is the user ID)
+        let userId = userProfile.id
 
         let predicate = #Predicate<SDUserProfile> { $0.id == userId }
         var descriptor = FetchDescriptor(predicate: predicate)
@@ -221,52 +230,45 @@ final class SwiftDataUserProfileAdapter: UserProfileStoragePortProtocol {
     // MARK: - Mapping: Domain → SwiftData
 
     /// Creates a new SDUserProfile from UserProfile domain model
-    private func createSDUserProfile(from userProfile: UserProfile) -> SDUserProfile {
-        // Use UserProfile's computed property for DOB (handles physical -> metadata fallback)
+    private func createSDUserProfile(from userProfile: FitIQCore.UserProfile) -> SDUserProfile {
         let dateOfBirth = userProfile.dateOfBirth
 
         print(
             "SwiftDataAdapter: Creating SDUserProfile - DOB: \(dateOfBirth?.description ?? "nil")")
         print(
-            "SwiftDataAdapter:   Source - Physical DOB: \(userProfile.physical?.dateOfBirth?.description ?? "nil")"
-        )
-        print(
-            "SwiftDataAdapter:   Source - Metadata DOB: \(userProfile.metadata.dateOfBirth?.description ?? "nil")"
+            "SwiftDataAdapter:   Source - FitIQCore.UserProfile DOB: \(dateOfBirth?.description ?? "nil")"
         )
 
-        // Initialize bodyMetrics with height if present (biological sex is stored as direct field)
+        // Initialize bodyMetrics with height if present
         var initialBodyMetrics: [SDPhysicalAttribute] = []
 
-        if let physical = userProfile.physical {
-            // Add height if present
-            if let heightCm = physical.heightCm, heightCm > 0 {
-                print("SwiftDataAdapter:   Initializing height in bodyMetrics: \(heightCm) cm")
-                let heightMetric = SDPhysicalAttribute(
-                    id: UUID(),
-                    value: heightCm,
-                    type: .height,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    backendID: nil,
-                    backendSyncedAt: nil,
-                    userProfile: nil  // Will be set via relationship
-                )
-                initialBodyMetrics.append(heightMetric)
-            }
+        if let heightCm = userProfile.heightCm, heightCm > 0 {
+            print("SwiftDataAdapter:   Initializing height in bodyMetrics: \(heightCm) cm")
+            let heightMetric = SDPhysicalAttribute(
+                id: UUID(),
+                value: heightCm,
+                type: .height,
+                createdAt: Date(),
+                updatedAt: Date(),
+                backendID: nil,
+                backendSyncedAt: nil,
+                userProfile: nil  // Will be set via relationship
+            )
+            initialBodyMetrics.append(heightMetric)
         }
 
         return SDUserProfile(
-            id: userProfile.userId,  // Use userId as the SwiftData ID
+            id: userProfile.id,  // FitIQCore.UserProfile.id is the user ID
             name: userProfile.name,
-            email: userProfile.email ?? "",
+            email: userProfile.email,
             authToken: nil,
             refreshToken: nil,
             tokenExpiresAt: nil,
             refreshTokenExpiresAt: nil,
             dailyCalorieGoal: nil,
             unitSystem: userProfile.preferredUnitSystem,
-            dateOfBirth: dateOfBirth,  // Use computed property with fallback
-            biologicalSex: userProfile.physical?.biologicalSex,  // Store directly
+            dateOfBirth: dateOfBirth,
+            biologicalSex: userProfile.biologicalSex,
             dietaryAndActivityPreferences: nil,
             bodyMetrics: initialBodyMetrics,
             activitySnapshots: [],
@@ -276,79 +278,69 @@ final class SwiftDataUserProfileAdapter: UserProfileStoragePortProtocol {
             mealLogs: [],
             photoRecognitions: [],
             workouts: [],
-            createdAt: userProfile.metadata.createdAt,
+            createdAt: userProfile.createdAt,
             updatedAt: Date(),
             hasPerformedInitialHealthKitSync: userProfile.hasPerformedInitialHealthKitSync,
             lastSuccessfulDailySyncDate: userProfile.lastSuccessfulDailySyncDate
         )
     }
 
-    /// Updates an existing SDUserProfile from UserProfile domain model
-    private func updateSDUserProfile(_ sdProfile: SDUserProfile, from userProfile: UserProfile) {
-        // Use UserProfile's computed property for DOB (handles physical -> metadata fallback)
+    /// Updates an existing SDUserProfile from FitIQCore.UserProfile domain model
+    private func updateSDUserProfile(
+        _ sdProfile: SDUserProfile, from userProfile: FitIQCore.UserProfile
+    ) {
         let dateOfBirth = userProfile.dateOfBirth
 
         print(
             "SwiftDataAdapter: Updating SDUserProfile - DOB: \(dateOfBirth?.description ?? "nil")")
         print("SwiftDataAdapter:   Previous DOB: \(sdProfile.dateOfBirth?.description ?? "nil")")
-        print(
-            "SwiftDataAdapter:   Source - Physical DOB: \(userProfile.physical?.dateOfBirth?.description ?? "nil")"
-        )
-        print(
-            "SwiftDataAdapter:   Source - Metadata DOB: \(userProfile.metadata.dateOfBirth?.description ?? "nil")"
-        )
 
-        // Update metadata fields
+        // Update basic fields
         sdProfile.name = userProfile.name
-        sdProfile.email = userProfile.email ?? ""
+        sdProfile.email = userProfile.email
         sdProfile.unitSystem = userProfile.preferredUnitSystem
-
-        // Update DOB using computed property with fallback
         sdProfile.dateOfBirth = dateOfBirth
 
-        // Update physical attributes
-        if let physical = userProfile.physical {
-            // Update biological sex directly on profile
-            if let biologicalSex = physical.biologicalSex, !biologicalSex.isEmpty {
-                if sdProfile.biologicalSex != biologicalSex {
-                    print("SwiftDataAdapter:   Updating biological sex: \(biologicalSex)")
-                    sdProfile.biologicalSex = biologicalSex
-                } else {
-                    print("SwiftDataAdapter:   Biological sex unchanged")
-                }
+        // Update biological sex if present
+        if let biologicalSex = userProfile.biologicalSex, !biologicalSex.isEmpty {
+            if sdProfile.biologicalSex != biologicalSex {
+                print("SwiftDataAdapter:   Updating biological sex: \(biologicalSex)")
+                sdProfile.biologicalSex = biologicalSex
+            } else {
+                print("SwiftDataAdapter:   Biological sex unchanged")
             }
+        }
 
-            // Save height to bodyMetrics time-series (height changes over time)
-            if let heightCm = physical.heightCm, heightCm > 0 {
-                // Check if we need to add a new entry (value changed or first time)
-                let existingHeightMetrics = (sdProfile.bodyMetrics ?? []).filter {
-                    $0.type == .height
-                }
-                let latestHeight = existingHeightMetrics.max(by: { $0.createdAt < $1.createdAt })
+        // Save height to bodyMetrics time-series (height changes over time)
+        if let heightCm = userProfile.heightCm, heightCm > 0 {
+            // Check if we need to add a new entry (value changed or first time)
+            let existingHeightMetrics = (sdProfile.bodyMetrics ?? []).filter {
+                $0.type == .height
+            }
+            let latestHeight = existingHeightMetrics.max(by: { $0.createdAt < $1.createdAt })
 
-                if latestHeight?.value != heightCm {
-                    print(
-                        "SwiftDataAdapter:   Height changed (\(latestHeight?.value ?? 0) → \(heightCm) cm), adding new bodyMetrics entry"
-                    )
-                    let heightMetric = SDPhysicalAttribute(
-                        id: UUID(),
-                        value: heightCm,
-                        type: .height,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        backendID: nil,
-                        backendSyncedAt: nil,
-                        userProfile: sdProfile
-                    )
-                    if sdProfile.bodyMetrics == nil {
-                        sdProfile.bodyMetrics = []
-                    }
-                    sdProfile.bodyMetrics?.append(heightMetric)
-                } else {
-                    print(
-                        "SwiftDataAdapter:   Height unchanged at \(heightCm) cm, skipping duplicate bodyMetrics entry (already synced)"
-                    )
+            if latestHeight?.value != heightCm {
+                print(
+                    "SwiftDataAdapter:   Height changed (\(latestHeight?.value ?? 0) → \(heightCm) cm), adding new bodyMetrics entry"
+                )
+                let heightMetric = SDPhysicalAttribute(
+                    id: UUID(),
+                    value: heightCm,
+                    type: .height,
+                    createdAt: Date(),
+                    updatedAt: Date(),
+                    backendID: nil,
+                    backendSyncedAt: nil,
+                    userProfile: sdProfile
+                )
+                if sdProfile.bodyMetrics == nil {
+                    sdProfile.bodyMetrics = []
                 }
+                sdProfile.bodyMetrics?.append(heightMetric)
+            } else {
+                print(
+                    "SwiftDataAdapter:   Height unchanged at \(heightCm) cm, skipping duplicate bodyMetrics entry"
+                )
             }
         }
 
@@ -360,74 +352,40 @@ final class SwiftDataUserProfileAdapter: UserProfileStoragePortProtocol {
 
     // MARK: - Mapping: SwiftData → Domain
 
-    /// Maps SDUserProfile to UserProfile domain model
-    private func mapToDomain(_ sdProfile: SDUserProfile) -> UserProfile {
-        print("SwiftDataAdapter: Mapping SDUserProfile to Domain")
+    /// Maps SDUserProfile to FitIQCore.UserProfile domain model
+    private func mapToDomain(_ sdProfile: SDUserProfile) -> FitIQCore.UserProfile {
+        print("SwiftDataAdapter: Mapping SDUserProfile to FitIQCore.UserProfile")
         print(
             "SwiftDataAdapter:   SDUserProfile DOB: \(sdProfile.dateOfBirth?.description ?? "nil")")
 
-        // Create metadata - use user ID as profile ID to match backend architecture
-        // Backend uses user_id as primary key, profile is nested within user
-        let metadata = UserProfileMetadata(
-            id: sdProfile.id,  // Use user ID as profile ID (backend's primary key)
-            userId: sdProfile.id,  // User ID
-            name: sdProfile.name,
-            bio: nil,  // SchemaV10 uses email instead of bio
-            preferredUnitSystem: sdProfile.unitSystem,
-            languageCode: nil,  // SchemaV10 doesn't have languageCode
-            dateOfBirth: sdProfile.dateOfBirth,  // Include DOB in metadata as fallback
-            createdAt: sdProfile.createdAt,
-            updatedAt: sdProfile.updatedAt ?? Date()
-        )
-
-        // Create physical profile from direct field (biologicalSex) and time-series (height)
-        let physical: PhysicalProfile? = {
-            // Fetch latest height from bodyMetrics time-series
-            let latestHeight: Double? = {
-                // bodyMetrics is optional for CloudKit compatibility
-                guard let bodyMetrics = sdProfile.bodyMetrics, !bodyMetrics.isEmpty else {
-                    return nil
-                }
-                // Filter for height type and get most recent by createdAt
-                let heightMetrics = bodyMetrics.filter { $0.type == .height }
-                return heightMetrics.max(by: { $0.createdAt < $1.createdAt })?.value
-            }()
-
-            // Get biological sex from direct field
-            let biologicalSex = sdProfile.biologicalSex
-
-            // Create physical profile if we have any data
-            if sdProfile.dateOfBirth != nil || latestHeight != nil || biologicalSex != nil {
-                print("SwiftDataAdapter:   Creating PhysicalProfile:")
-                print("SwiftDataAdapter:     - DOB: \(sdProfile.dateOfBirth?.description ?? "nil")")
-                print("SwiftDataAdapter:     - Height: \(latestHeight?.description ?? "nil") cm")
-                print("SwiftDataAdapter:     - Biological Sex: \(biologicalSex ?? "nil")")
-
-                return PhysicalProfile(
-                    biologicalSex: biologicalSex,
-                    heightCm: latestHeight,
-                    dateOfBirth: sdProfile.dateOfBirth
-                )
+        // Fetch latest height from bodyMetrics time-series
+        let latestHeight: Double? = {
+            guard let bodyMetrics = sdProfile.bodyMetrics, !bodyMetrics.isEmpty else {
+                return nil
             }
-            print("SwiftDataAdapter:   No physical data found, physical profile will be nil")
-            return nil
+            let heightMetrics = bodyMetrics.filter { $0.type == .height }
+            return heightMetrics.max(by: { $0.createdAt < $1.createdAt })?.value
         }()
 
-        print(
-            "SwiftDataAdapter:   Final - Metadata DOB: \(metadata.dateOfBirth?.description ?? "nil")"
-        )
-        print(
-            "SwiftDataAdapter:   Final - Physical DOB: \(physical?.dateOfBirth?.description ?? "nil")"
-        )
+        print("SwiftDataAdapter:   Latest height: \(latestHeight?.description ?? "nil") cm")
+        print("SwiftDataAdapter:   Biological sex: \(sdProfile.biologicalSex ?? "nil")")
 
-        // Create UserProfile
-        return UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: nil,  // Not stored in SDUserProfile
-            username: nil,  // Deprecated field
+        // Create FitIQCore.UserProfile with all available data
+        return FitIQCore.UserProfile(
+            id: sdProfile.id,
+            email: sdProfile.email,
+            name: sdProfile.name,
+            bio: nil,  // SchemaV10 doesn't store bio
+            username: nil,
+            languageCode: nil,  // SchemaV10 doesn't store languageCode
+            dateOfBirth: sdProfile.dateOfBirth,
+            biologicalSex: sdProfile.biologicalSex,
+            heightCm: latestHeight,
+            preferredUnitSystem: sdProfile.unitSystem,
             hasPerformedInitialHealthKitSync: sdProfile.hasPerformedInitialHealthKitSync,
-            lastSuccessfulDailySyncDate: sdProfile.lastSuccessfulDailySyncDate
+            lastSuccessfulDailySyncDate: sdProfile.lastSuccessfulDailySyncDate,
+            createdAt: sdProfile.createdAt,
+            updatedAt: sdProfile.updatedAt ?? Date()
         )
     }
 

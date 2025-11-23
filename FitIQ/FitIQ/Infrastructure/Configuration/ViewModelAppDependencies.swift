@@ -97,10 +97,8 @@ class ViewModelAppDependencies: ObservableObject {
 
         // NEW: Instantiate ProfileViewModel with its dependencies
         let profileViewModel = ProfileViewModel(
-            getPhysicalProfileUseCase: appDependencies.getPhysicalProfileUseCase,
             updateUserProfileUseCase: appDependencies.updateUserProfileUseCase,
             updateProfileMetadataUseCase: appDependencies.updateProfileMetadataUseCase,
-            updatePhysicalProfileUseCase: appDependencies.updatePhysicalProfileUseCase,
             userProfileStorage: appDependencies.userProfileStorage,
             authManager: authManager,
             cloudDataManager: cloudDataManager,

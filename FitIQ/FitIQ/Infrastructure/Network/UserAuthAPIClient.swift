@@ -3,9 +3,9 @@
 //  FitIQ
 //
 //  Created by Marcos Barbero on 11/10/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
-// Infrastructure/Network/UserAuthAPIClient.swift
 import FitIQCore
 import Foundation
 
@@ -103,33 +103,22 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
             let username =
                 registerResponse.email.components(separatedBy: "@").first ?? registerResponse.email
 
-            // Create metadata from registration response
-            // Use user ID as profile ID to match backend architecture (user_id is primary key)
-            let metadata = UserProfileMetadata(
-                id: userId,  // Use user ID as profile ID (backend's primary key)
-                userId: userId,
+            // Create unified UserProfile from registration response
+            let userProfile = FitIQCore.UserProfile(
+                id: userId,
+                email: registerResponse.email,
                 name: registerResponse.name,
                 bio: nil,
-                preferredUnitSystem: "metric",
+                username: username,
                 languageCode: nil,
                 dateOfBirth: userData.dateOfBirth,
-                createdAt: createdAt,
-                updatedAt: createdAt
-            )
-
-            // Create physical profile with date of birth from registration
-            let physicalProfile = PhysicalProfile(
                 biologicalSex: nil,  // Not collected during registration
                 heightCm: nil,  // Not collected during registration
-                dateOfBirth: userData.dateOfBirth  // Store DOB in physical profile
-            )
-
-            // Compose UserProfile
-            let userProfile = UserProfile(
-                metadata: metadata,
-                physical: physicalProfile,  // Include physical profile with DOB
-                email: registerResponse.email,
-                username: username
+                preferredUnitSystem: "metric",
+                hasPerformedInitialHealthKitSync: false,
+                lastSuccessfulDailySyncDate: nil,
+                createdAt: createdAt,
+                updatedAt: createdAt
             )
 
             print("UserAuthAPIClient: User profile constructed from registration response.")
@@ -187,19 +176,16 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
             print("UserAuthAPIClient: Decoded user_id: \(userId). Fetching user profile...")
 
             // Try to fetch user profile from backend
-            let userProfile: UserProfile
+            let userProfile: FitIQCore.UserProfile
             do {
                 let userProfileDTO = try await fetchUserProfile(
                     userId: userId, accessToken: loginResponseDTO.accessToken)
-                // Convert DTO to metadata, then compose UserProfile
-                let metadata = try userProfileDTO.toDomain()
+                // Convert DTO to unified UserProfile
                 let email = authToken.parseEmailFromJWT() ?? credentials.email
-                let username = email.components(separatedBy: "@").first ?? email
-                userProfile = UserProfile(
-                    metadata: metadata,
-                    physical: nil,  // Physical profile would come from separate endpoint
+                userProfile = try userProfileDTO.toDomain(
                     email: email,
-                    username: username
+                    hasPerformedInitialHealthKitSync: false,
+                    lastSuccessfulDailySyncDate: nil
                 )
             } catch let caughtError {
                 // Check if it's a 404 error
@@ -215,27 +201,23 @@ final class UserAuthAPIClient: AuthRepositoryProtocol {
                         let email = authToken.parseEmailFromJWT() ?? credentials.email
                         let username = email.components(separatedBy: "@").first ?? email
 
-                        // Create minimal metadata from JWT
-                        // Use user ID as profile ID to match backend architecture
+                        // Create minimal unified UserProfile from JWT
                         let userUUID = UUID(uuidString: userId) ?? UUID()
-                        let metadata = UserProfileMetadata(
-                            id: userUUID,  // Use user ID as profile ID (backend's primary key)
-                            userId: userUUID,
+                        userProfile = FitIQCore.UserProfile(
+                            id: userUUID,
+                            email: email,
                             name: "",  // Will be updated when user completes profile
                             bio: nil,
-                            preferredUnitSystem: "metric",
+                            username: username,
                             languageCode: nil,
                             dateOfBirth: nil,
+                            biologicalSex: nil,
+                            heightCm: nil,
+                            preferredUnitSystem: "metric",
+                            hasPerformedInitialHealthKitSync: false,
+                            lastSuccessfulDailySyncDate: nil,
                             createdAt: Date(),
                             updatedAt: Date()
-                        )
-
-                        // Compose UserProfile
-                        userProfile = UserProfile(
-                            metadata: metadata,
-                            physical: nil,
-                            email: email,
-                            username: username
                         )
                         print("UserAuthAPIClient: Minimal profile constructed from JWT.")
                     default:

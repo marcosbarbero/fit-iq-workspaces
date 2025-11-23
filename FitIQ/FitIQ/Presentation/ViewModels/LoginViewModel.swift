@@ -5,6 +5,7 @@
 //
 
 import Combine
+import FitIQCore
 import Foundation
 import Security
 

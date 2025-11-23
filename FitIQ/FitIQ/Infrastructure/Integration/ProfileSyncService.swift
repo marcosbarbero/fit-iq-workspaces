@@ -7,6 +7,7 @@
 //
 
 import Combine
+import FitIQCore
 import Foundation
 
 /// Service for synchronizing profile changes with the backend API
@@ -22,7 +23,7 @@ import Foundation
 /// **Related Components:**
 /// - `ProfileEventPublisherProtocol` - Source of domain events
 /// - `UserProfileRepositoryProtocol` - Backend API client
-/// - `PhysicalProfileRepositoryProtocol` - Physical profile API client
+
 /// - `UserProfileStoragePortProtocol` - Local storage
 ///
 protocol ProfileSyncServiceProtocol {
@@ -46,7 +47,6 @@ final class ProfileSyncService: ProfileSyncServiceProtocol {
 
     private let profileEventPublisher: ProfileEventPublisherProtocol
     private let userProfileRepository: UserProfileRepositoryProtocol
-    private let physicalProfileRepository: PhysicalProfileRepositoryProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
     private let authManager: AuthManager
 
@@ -71,13 +71,11 @@ final class ProfileSyncService: ProfileSyncServiceProtocol {
     init(
         profileEventPublisher: ProfileEventPublisherProtocol,
         userProfileRepository: UserProfileRepositoryProtocol,
-        physicalProfileRepository: PhysicalProfileRepositoryProtocol,
         userProfileStorage: UserProfileStoragePortProtocol,
         authManager: AuthManager
     ) {
         self.profileEventPublisher = profileEventPublisher
         self.userProfileRepository = userProfileRepository
-        self.physicalProfileRepository = physicalProfileRepository
         self.userProfileStorage = userProfileStorage
         self.authManager = authManager
 
@@ -265,10 +263,7 @@ final class ProfileSyncService: ProfileSyncServiceProtocol {
         print("ProfileSyncService:   Bio: '\(profile.bio ?? "")'")
         print("ProfileSyncService:   Unit System: '\(profile.preferredUnitSystem)'")
         print("ProfileSyncService:   Language: '\(profile.languageCode ?? "")'")
-        print("ProfileSyncService:   Updated At: \(profile.metadata.updatedAt)")
-
-        // Prepare metadata update request
-        let metadata = profile.metadata
+        print("ProfileSyncService:   Updated At: \(profile.updatedAt)")
 
         // Call backend API to update profile metadata using new method
         guard let apiClient = userProfileRepository as? UserProfileAPIClient else {
@@ -282,23 +277,31 @@ final class ProfileSyncService: ProfileSyncServiceProtocol {
         print("ProfileSyncService: 🌐 Syncing to backend...")
         let updatedProfile = try await apiClient.updateProfileMetadata(
             userId: userId,
-            name: metadata.name,
-            bio: metadata.bio,
-            preferredUnitSystem: metadata.preferredUnitSystem,
-            languageCode: metadata.languageCode
+            name: profile.name,
+            bio: profile.bio,
+            preferredUnitSystem: profile.preferredUnitSystem,
+            languageCode: profile.languageCode
         )
 
         print("ProfileSyncService: ✅ Backend sync successful")
-        print("ProfileSyncService:   Backend Updated At: \(updatedProfile.metadata.updatedAt)")
+        print("ProfileSyncService:   Backend Updated At: \(updatedProfile.updatedAt)")
 
         // Merge backend response with local state (preserve HealthKit sync flags)
-        let mergedProfile = UserProfile(
-            metadata: updatedProfile.metadata,
-            physical: profile.physical ?? updatedProfile.physical,  // Keep local physical if exists
-            email: profile.email ?? updatedProfile.email,
-            username: profile.username ?? updatedProfile.username,
+        let mergedProfile = FitIQCore.UserProfile(
+            id: profile.id,
+            email: profile.email,
+            name: updatedProfile.name,
+            bio: updatedProfile.bio,
+            username: profile.username,
+            languageCode: updatedProfile.languageCode,
+            dateOfBirth: profile.dateOfBirth,
+            biologicalSex: profile.biologicalSex,
+            heightCm: profile.heightCm,
+            preferredUnitSystem: updatedProfile.preferredUnitSystem,
             hasPerformedInitialHealthKitSync: profile.hasPerformedInitialHealthKitSync,
-            lastSuccessfulDailySyncDate: profile.lastSuccessfulDailySyncDate
+            lastSuccessfulDailySyncDate: profile.lastSuccessfulDailySyncDate,
+            createdAt: profile.createdAt,
+            updatedAt: updatedProfile.updatedAt
         )
 
         // Update local storage with merged profile
@@ -326,26 +329,17 @@ final class ProfileSyncService: ProfileSyncServiceProtocol {
             throw ProfileSyncError.profileNotFound(userId)
         }
 
-        // Get physical profile
-        guard let physical = profile.physical else {
-            print("ProfileSyncService: No physical profile to sync for user \(userId)")
-            syncQueue.sync {
-                pendingPhysicalSync.remove(userId)
-            }
-            return
-        }
-
         // Debug: Log what we're about to send
         print("ProfileSyncService: Syncing physical profile with:")
-        print("  - biologicalSex: \(physical.biologicalSex ?? "nil")")
-        print("  - heightCm: \(physical.heightCm?.description ?? "nil")")
-        print("  - dateOfBirth: \(physical.dateOfBirth?.description ?? "nil")")
+        print("  - biologicalSex: \(profile.biologicalSex ?? "nil")")
+        print("  - heightCm: \(profile.heightCm?.description ?? "nil")")
+        print("  - dateOfBirth: \(profile.dateOfBirth?.description ?? "nil")")
 
         // WORKAROUND: Backend /users/me/physical endpoint is for "biological sex and height" only
         // Even though the schema includes date_of_birth, the backend rejects requests with ONLY date_of_birth
         // Skip sync if we only have date_of_birth (which comes from registration and can't be changed)
-        let hasBiologicalSex = physical.biologicalSex != nil && !physical.biologicalSex!.isEmpty
-        let hasHeight = physical.heightCm != nil && physical.heightCm! > 0
+        let hasBiologicalSex = profile.biologicalSex != nil && !profile.biologicalSex!.isEmpty
+        let hasHeight = profile.heightCm != nil && profile.heightCm! > 0
 
         if !hasBiologicalSex && !hasHeight {
             print(
@@ -363,16 +357,19 @@ final class ProfileSyncService: ProfileSyncServiceProtocol {
             return
         }
 
-        // Call backend API to update physical profile
-        let updatedPhysical = try await physicalProfileRepository.updatePhysicalProfile(
+        // Call backend API to update profile with physical attributes
+        // Note: Using updateProfile instead of separate physical profile endpoint
+        let updatedProfile = try await userProfileRepository.updateProfile(
             userId: userId,
-            biologicalSex: physical.biologicalSex,
-            heightCm: physical.heightCm,
-            dateOfBirth: physical.dateOfBirth
+            name: profile.name,
+            dateOfBirth: profile.dateOfBirth,
+            gender: profile.biologicalSex,
+            height: profile.heightCm,
+            weight: nil,  // Not tracked in physical profile sync
+            activityLevel: nil  // Not tracked in physical profile sync
         )
 
-        // Update local storage with backend response
-        let updatedProfile = profile.updatingPhysical(updatedPhysical)
+        // Save updated profile to local storage
         try await userProfileStorage.save(userProfile: updatedProfile)
 
         print("ProfileSyncService: Successfully synced physical profile for user \(userId)")

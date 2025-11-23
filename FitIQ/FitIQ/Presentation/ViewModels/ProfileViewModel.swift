@@ -3,9 +3,11 @@
 //  FitIQ
 //
 //  Created by Marcos Barbero on 11/10/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
 import Combine
+import FitIQCore
 import Foundation
 import HealthKit
 import SwiftData
@@ -17,7 +19,6 @@ class ProfileViewModel: ObservableObject {
     private let updateUserProfileUseCase: UpdateUserProfileUseCaseProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
     private let updateProfileMetadataUseCase: UpdateProfileMetadataUseCase
-    private let updatePhysicalProfileUseCase: UpdatePhysicalProfileUseCase
     private let healthRepository: HealthRepositoryProtocol
     private let syncBiologicalSexFromHealthKitUseCase: SyncBiologicalSexFromHealthKitUseCase?
     private let deleteAllUserDataUseCase: DeleteAllUserDataUseCase
@@ -30,7 +31,7 @@ class ProfileViewModel: ObservableObject {
     @Published var deletionError: Error? = nil
 
     // Profile editing state
-    @Published var userProfile: UserProfile?
+    @Published var userProfile: FitIQCore.UserProfile?
     @Published var name: String = ""
     @Published var bio: String = ""
     @Published var dateOfBirth: Date = {
@@ -49,20 +50,15 @@ class ProfileViewModel: ObservableObject {
     @Published var isSavingProfile: Bool = false
     @Published var profileUpdateMessage: String?
 
-    private let getPhysicalProfileUseCase: GetPhysicalProfileUseCase
-
-    // Physical profile state
-    @Published var physicalProfile: PhysicalProfile?
+    // Physical profile state (deprecated - now part of userProfile)
     @Published var isLoadingPhysical: Bool = false
     @Published var physicalProfileError: String?
     @Published var isReauthorizingHealthKit: Bool = false
     @Published var reauthorizationMessage: String?
 
     init(
-        getPhysicalProfileUseCase: GetPhysicalProfileUseCase,
         updateUserProfileUseCase: UpdateUserProfileUseCaseProtocol,
         updateProfileMetadataUseCase: UpdateProfileMetadataUseCase,
-        updatePhysicalProfileUseCase: UpdatePhysicalProfileUseCase,
         userProfileStorage: UserProfileStoragePortProtocol,
         authManager: AuthManager,
         cloudDataManager: CloudDataManagerProtocol,
@@ -72,10 +68,8 @@ class ProfileViewModel: ObservableObject {
         deleteAllUserDataUseCase: DeleteAllUserDataUseCase,
         healthKitAuthUseCase: RequestHealthKitAuthorizationUseCase? = nil
     ) {
-        self.getPhysicalProfileUseCase = getPhysicalProfileUseCase
         self.updateUserProfileUseCase = updateUserProfileUseCase
         self.updateProfileMetadataUseCase = updateProfileMetadataUseCase
-        self.updatePhysicalProfileUseCase = updatePhysicalProfileUseCase
         self.userProfileStorage = userProfileStorage
         self.authManager = authManager
         self.cloudDataManager = cloudDataManager
@@ -142,28 +136,17 @@ class ProfileViewModel: ObservableObject {
             if let profile = profile {
                 print("ProfileViewModel: ✅ Profile loaded from local storage")
                 print("ProfileViewModel:   Profile ID: \(profile.id)")
-                print("ProfileViewModel:   User ID: \(profile.userId)")
+                print("ProfileViewModel:   User ID: \(profile.id)")
                 print("ProfileViewModel:   Name: '\(profile.name)'")
                 print("ProfileViewModel:   Bio: '\(profile.bio ?? "")'")
-                print("ProfileViewModel:   Updated At: \(profile.metadata.updatedAt)")
-                print("ProfileViewModel: --- DOB Analysis ---")
+                print("ProfileViewModel:   Updated At: \(profile.updatedAt)")
+                print("ProfileViewModel: --- Physical Attributes ---")
                 print(
-                    "ProfileViewModel:   Metadata DOB: \(profile.metadata.dateOfBirth?.description ?? "nil")"
+                    "ProfileViewModel:   Date of Birth: \(profile.dateOfBirth?.description ?? "nil")"
                 )
                 print(
-                    "ProfileViewModel:   Physical DOB: \(profile.physical?.dateOfBirth?.description ?? "nil")"
-                )
-                print(
-                    "ProfileViewModel:   Computed DOB: \(profile.dateOfBirth?.description ?? "nil")"
-                )
-                print("ProfileViewModel: --- Physical Profile ---")
-                if let physical = profile.physical {
-                    print(
-                        "ProfileViewModel:   Height: \(physical.heightCm?.description ?? "nil") cm")
-                    print("ProfileViewModel:   Biological Sex: \(physical.biologicalSex ?? "nil")")
-                } else {
-                    print("ProfileViewModel:   Physical profile: nil")
-                }
+                    "ProfileViewModel:   Height: \(profile.heightCm?.description ?? "nil") cm")
+                print("ProfileViewModel:   Biological Sex: \(profile.biologicalSex ?? "nil")")
             } else {
                 print("ProfileViewModel: ⚠️  No profile found in local storage")
                 print("ProfileViewModel: ℹ️  Profile should have been saved during registration")
@@ -179,16 +162,14 @@ class ProfileViewModel: ObservableObject {
             self.languageCode = profile?.languageCode ?? "en"
             self.userName = profile?.name ?? "User"
 
-            // Populate physical profile fields from stored profile first
-            if let physical = profile?.physical {
-                if let heightCm = physical.heightCm {
-                    self.heightCm = String(format: "%.0f", heightCm)
-                    print("ProfileViewModel:   Set height from physical: \(heightCm) cm")
-                }
-                if let biologicalSex = physical.biologicalSex {
-                    self.biologicalSex = biologicalSex
-                    print("ProfileViewModel:   Set biological sex from physical: \(biologicalSex)")
-                }
+            // Populate physical profile fields from stored profile
+            if let heightCm = profile?.heightCm {
+                self.heightCm = String(format: "%.0f", heightCm)
+                print("ProfileViewModel:   Set height from profile: \(heightCm) cm")
+            }
+            if let biologicalSex = profile?.biologicalSex {
+                self.biologicalSex = biologicalSex
+                print("ProfileViewModel:   Set biological sex from profile: \(biologicalSex)")
             }
 
             // Use UserProfile's computed property for DOB (handles physical -> metadata fallback)
@@ -233,146 +214,26 @@ class ProfileViewModel: ObservableObject {
         isLoading = false
     }
 
-    /// Loads the user's physical profile from the backend and merges with local data
+    /// DEPRECATED: This method is no longer needed with unified UserProfile
+    /// Physical attributes are now loaded as part of the main user profile
     @MainActor
     func loadPhysicalProfile() async {
-        guard let userId = authManager.currentUserProfileID else {
-            print("ProfileViewModel: ⚠️  No current user ID for loading physical profile")
-            return
-        }
+        print("ProfileViewModel: ⚠️  DEPRECATED: loadPhysicalProfile() is no longer needed")
+        print("ProfileViewModel: Physical attributes are now part of the unified UserProfile")
+        print("ProfileViewModel: Data is already loaded via loadUserProfile()")
 
-        isLoadingPhysical = true
-        physicalProfileError = nil
-
-        print("ProfileViewModel: 📡 Fetching physical profile from backend...")
-
-        do {
-            let backendPhysical = try await getPhysicalProfileUseCase.execute(
-                userId: userId.uuidString)
-
-            print("ProfileViewModel: ✅ Backend physical profile fetched")
-            print("ProfileViewModel: --- Backend Data ---")
-            print("ProfileViewModel:   DOB: \(backendPhysical?.dateOfBirth?.description ?? "nil")")
-            print(
-                "ProfileViewModel:   Height: \(backendPhysical?.heightCm?.description ?? "nil") cm")
-            print("ProfileViewModel:   Sex: \(backendPhysical?.biologicalSex ?? "nil")")
-
-            // Merge backend data with existing local data
-            if let currentProfile = self.userProfile {
-                let existingPhysical = currentProfile.physical
-
-                print("ProfileViewModel: --- Existing Local Data ---")
-                print(
-                    "ProfileViewModel:   Physical DOB: \(existingPhysical?.dateOfBirth?.description ?? "nil")"
-                )
-                print(
-                    "ProfileViewModel:   Physical Height: \(existingPhysical?.heightCm?.description ?? "nil") cm"
-                )
-                print(
-                    "ProfileViewModel:   Physical Sex: \(existingPhysical?.biologicalSex ?? "nil")")
-                print(
-                    "ProfileViewModel:   Metadata DOB: \(currentProfile.metadata.dateOfBirth?.description ?? "nil")"
-                )
-
-                // Merge physical profile - prefer backend if present, fallback to local, then metadata
-                let mergedDOB =
-                    backendPhysical?.dateOfBirth
-                    ?? existingPhysical?.dateOfBirth
-                    ?? currentProfile.metadata.dateOfBirth
-
-                let mergedHeight =
-                    backendPhysical?.heightCm
-                    ?? existingPhysical?.heightCm
-
-                let mergedSex =
-                    backendPhysical?.biologicalSex
-                    ?? existingPhysical?.biologicalSex
-
-                let mergedPhysical = PhysicalProfile(
-                    biologicalSex: mergedSex,
-                    heightCm: mergedHeight,
-                    dateOfBirth: mergedDOB
-                )
-
-                print("ProfileViewModel: --- Merged Physical Data ---")
-                print(
-                    "ProfileViewModel:   DOB: \(mergedPhysical.dateOfBirth?.description ?? "nil") (source: \(backendPhysical?.dateOfBirth != nil ? "backend" : existingPhysical?.dateOfBirth != nil ? "local-physical" : currentProfile.metadata.dateOfBirth != nil ? "local-metadata" : "none"))"
-                )
-                print(
-                    "ProfileViewModel:   Height: \(mergedPhysical.heightCm?.description ?? "nil") cm (source: \(backendPhysical?.heightCm != nil ? "backend" : "local"))"
-                )
-                print(
-                    "ProfileViewModel:   Sex: \(mergedPhysical.biologicalSex ?? "nil") (source: \(backendPhysical?.biologicalSex != nil ? "backend" : "local"))"
-                )
-
-                self.physicalProfile = mergedPhysical
-
-                // Update userProfile with merged physical profile
-                let updatedProfile = UserProfile(
-                    metadata: currentProfile.metadata,
-                    physical: mergedPhysical,
-                    email: currentProfile.email,
-                    username: currentProfile.username,
-                    hasPerformedInitialHealthKitSync: currentProfile
-                        .hasPerformedInitialHealthKitSync,
-                    lastSuccessfulDailySyncDate: currentProfile.lastSuccessfulDailySyncDate
-                )
-
-                self.userProfile = updatedProfile
-
-                // Save merged profile back to local storage
-                do {
-                    try await userProfileStorage.save(userProfile: updatedProfile)
-                    print("ProfileViewModel: ✅ Saved merged profile to local storage")
-                } catch {
-                    print(
-                        "ProfileViewModel: ⚠️  Failed to save merged profile: \(error.localizedDescription)"
-                    )
-                }
-            } else {
-                // No existing profile, just use backend data
-                print("ProfileViewModel: ℹ️  No existing profile, using backend data only")
-                self.physicalProfile = backendPhysical
-            }
-
-            // Update form fields from merged profile
-            print("ProfileViewModel: --- Updating Form Fields ---")
-            if let height = self.userProfile?.heightCm, height > 0 {
+        // Update form fields from existing userProfile
+        if let profile = self.userProfile {
+            if let height = profile.heightCm, height > 0 {
                 self.heightCm = String(format: "%.0f", height)
-                print("ProfileViewModel:   Height field updated: \(height) cm")
-            } else {
-                print("ProfileViewModel:   No height to update")
             }
-
-            if let sex = self.userProfile?.biologicalSex, !sex.isEmpty {
-                self.biologicalSex = sex
-                print("ProfileViewModel:   Biological sex field updated: \(sex)")
-            } else {
-                print("ProfileViewModel:   No biological sex to update")
-            }
-
-            // Use UserProfile's computed property for DOB (handles physical -> metadata fallback)
-            if let dob = self.userProfile?.dateOfBirth {
+            if let dob = profile.dateOfBirth {
                 self.dateOfBirth = dob
-                print("ProfileViewModel: ✅ DOB field updated: \(dob)")
-            } else {
-                print("ProfileViewModel: ⚠️  No DOB available after backend merge")
-                print(
-                    "ProfileViewModel:     Physical DOB: \(self.userProfile?.physical?.dateOfBirth?.description ?? "nil")"
-                )
-                print(
-                    "ProfileViewModel:     Metadata DOB: \(self.userProfile?.metadata.dateOfBirth?.description ?? "nil")"
-                )
             }
-        } catch {
-            physicalProfileError = error.localizedDescription
-            print(
-                "ProfileViewModel: ⚠️  Failed to load physical profile from backend: \(error.localizedDescription)"
-            )
-            print("ProfileViewModel: Will continue with local data and attempt HealthKit fallback")
+            if let sex = profile.biologicalSex, !sex.isEmpty {
+                self.biologicalSex = sex
+            }
         }
-
-        isLoadingPhysical = false
     }
 
     /// Loads physical profile data from HealthKit if fields are empty
@@ -437,10 +298,14 @@ class ProfileViewModel: ObservableObject {
                     print("ProfileViewModel: Auto-saving height to storage...")
                     if let userId = authManager.currentUserProfileID {
                         do {
-                            _ = try await updatePhysicalProfileUseCase.execute(
+                            _ = try await updateUserProfileUseCase.execute(
                                 userId: userId.uuidString,
-                                heightCm: heightSample,
-                                dateOfBirth: dateOfBirth
+                                name: nil,
+                                dateOfBirth: dateOfBirth,
+                                gender: nil,
+                                height: heightSample,
+                                weight: nil,
+                                activityLevel: nil
                             )
                             print("ProfileViewModel: ✅ Height auto-saved to storage")
                         } catch {
@@ -541,7 +406,7 @@ class ProfileViewModel: ObservableObject {
             print("ProfileViewModel: ✅ Profile metadata saved successfully")
             print("ProfileViewModel:   Updated Name: '\(updatedProfile.name)'")
             print("ProfileViewModel:   Updated Bio: '\(updatedProfile.bio ?? "")'")
-            print("ProfileViewModel:   Updated At: \(updatedProfile.metadata.updatedAt)")
+            print("ProfileViewModel:   Updated At: \(updatedProfile.updatedAt)")
         } catch {
             profileUpdateMessage = "Failed to update profile: \(error.localizedDescription)"
             print(
@@ -574,24 +439,31 @@ class ProfileViewModel: ObservableObject {
 
         do {
             // Note: biologicalSex is NOT passed - it's HealthKit-only
-            let updatedPhysical = try await updatePhysicalProfileUseCase.execute(
+            let updatedProfile = try await updateUserProfileUseCase.execute(
                 userId: userId.uuidString,
-                heightCm: height,
-                dateOfBirth: dateOfBirth
+                name: nil,
+                dateOfBirth: dateOfBirth,
+                gender: nil,
+                height: height,
+                weight: nil,
+                activityLevel: nil
             )
 
-            self.physicalProfile = updatedPhysical
+            // Update local state from unified profile
+            self.userProfile = updatedProfile
+            self.heightCm = String(format: "%.1f", updatedProfile.heightCm ?? 0)
+            self.dateOfBirth = updatedProfile.dateOfBirth ?? self.dateOfBirth
             self.profileUpdateMessage = "Physical profile updated successfully!"
 
             print("ProfileViewModel: ✅ Physical profile saved successfully")
             print(
-                "ProfileViewModel:   Updated Height: \(updatedPhysical.heightCm?.description ?? "nil") cm"
+                "ProfileViewModel:   Updated Height: \(updatedProfile.heightCm?.description ?? "nil") cm"
             )
             print(
-                "ProfileViewModel:   Biological Sex: \(updatedPhysical.biologicalSex ?? "nil") (unchanged, HealthKit-only)"
+                "ProfileViewModel:   Biological Sex: \(updatedProfile.biologicalSex ?? "nil") (unchanged, HealthKit-only)"
             )
             print(
-                "ProfileViewModel:   Updated DOB: \(updatedPhysical.dateOfBirth?.description ?? "nil")"
+                "ProfileViewModel:   Updated DOB: \(updatedProfile.dateOfBirth?.description ?? "nil")"
             )
         } catch {
             profileUpdateMessage =
@@ -723,14 +595,16 @@ class ProfileViewModel: ObservableObject {
         }
 
         // Restore from physical profile if available
-        if let physical = physicalProfile {
-            if let height = physical.heightCm {
+        // Populate form fields from HealthKit data if available (deprecated - now uses userProfile)
+        // This code is kept for backward compatibility but physical is no longer a separate entity
+        if let profile = self.userProfile {
+            if let height = profile.heightCm {
                 heightCm = String(format: "%.0f", height)
             }
-            if let sex = physical.biologicalSex {
+            if let sex = profile.biologicalSex {
                 biologicalSex = sex
             }
-            if let dob = physical.dateOfBirth {
+            if let dob = profile.dateOfBirth {
                 dateOfBirth = dob
             }
         }

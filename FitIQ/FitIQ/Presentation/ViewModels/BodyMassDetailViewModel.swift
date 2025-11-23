@@ -7,6 +7,7 @@
 //
 
 import Combine
+import FitIQCore
 import Foundation
 import HealthKit
 import Observation
@@ -95,7 +96,8 @@ final class BodyMassDetailViewModel {
             print("BodyMassDetailViewModel: End date: \(endDate.formatted())")
 
             let calendar = Calendar.current
-            let daysDifference = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 0
+            let daysDifference =
+                calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 0
             print("BodyMassDetailViewModel: Date range spans \(daysDifference) days")
 
             // Fetch historical weight for the selected range
@@ -141,7 +143,9 @@ final class BodyMassDetailViewModel {
                 let allInRange = historicalData.allSatisfy { record in
                     record.date >= startDate && record.date <= endDate
                 }
-                print("BodyMassDetailViewModel: All data within filter range: \(allInRange ? "✅ YES" : "❌ NO")")
+                print(
+                    "BodyMassDetailViewModel: All data within filter range: \(allInRange ? "✅ YES" : "❌ NO")"
+                )
             } else {
                 print("BodyMassDetailViewModel: ⚠️ No data returned for this filter")
             }
@@ -217,7 +221,9 @@ final class BodyMassDetailViewModel {
             startDate = calendar.date(byAdding: .year, value: -5, to: endDate) ?? endDate
         }
 
-        print("BodyMassDetailViewModel: calculateStartDate(\(range.rawValue)) = \(startDate.formatted())")
+        print(
+            "BodyMassDetailViewModel: calculateStartDate(\(range.rawValue)) = \(startDate.formatted())"
+        )
         return startDate
     }
 

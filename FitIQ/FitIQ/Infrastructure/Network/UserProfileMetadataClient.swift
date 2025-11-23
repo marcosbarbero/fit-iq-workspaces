@@ -6,8 +6,8 @@
 //  Part of API Client Refactoring - Separation of Concerns
 //
 
-import Foundation
 import FitIQCore
+import Foundation
 
 /// Client for user profile metadata operations
 ///
@@ -145,44 +145,27 @@ final class UserProfileMetadataClient {
 
         // Decode response
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let metadata: UserProfileResponseDTO
         do {
             let successResponse = try decoder.decode(
                 StandardResponse<UserProfileResponseDTO>.self, from: data)
-            metadata = try successResponse.data.toDomain()
+            metadata = successResponse.data
             print("UserProfileMetadataClient: ✅ Profile created successfully (wrapped response)")
         } catch {
             print("UserProfileMetadataClient: Trying direct decode...")
-            let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
+            metadata = try decoder.decode(UserProfileResponseDTO.self, from: data)
             print("UserProfileMetadataClient: ✅ Profile created successfully (direct response)")
         }
 
-        // Get stored profile for email/username
+        // Get stored profile for email
         guard let userUUID = UUID(uuidString: userId) else {
             throw APIError.invalidUserId
         }
         let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
 
-        // Create physical profile with DOB if provided
-        var physical: PhysicalProfile? = nil
-        if let dateOfBirth = dateOfBirth {
-            physical = PhysicalProfile(
-                biologicalSex: nil,
-                heightCm: nil,
-                dateOfBirth: dateOfBirth
-            )
-            print("UserProfileMetadataClient: Created physical profile with DOB: \(dateOfBirth)")
-        }
-
-        // Compose UserProfile
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
+        // Use DTO's toDomain() method to create unified UserProfile
+        let profile = try metadata.toDomain(
+            email: storedProfile?.email ?? "",
             hasPerformedInitialHealthKitSync: false,
             lastSuccessfulDailySyncDate: nil
         )
@@ -230,31 +213,27 @@ final class UserProfileMetadataClient {
 
         // Decode response
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let metadata: UserProfileResponseDTO
         do {
             let successResponse = try decoder.decode(
                 StandardResponse<UserProfileResponseDTO>.self, from: data)
-            metadata = try successResponse.data.toDomain()
+            metadata = successResponse.data
             print("UserProfileMetadataClient: ✅ Successfully fetched profile metadata")
         } catch {
             print("UserProfileMetadataClient: Trying direct decode...")
-            let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
+            metadata = try decoder.decode(UserProfileResponseDTO.self, from: data)
             print("UserProfileMetadataClient: ✅ Successfully fetched profile metadata")
         }
 
-        // Get stored profile for email/username/physical data
-        let storedProfile = try? await userProfileStorage.fetch(forUserID: metadata.userId)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
-        let physical = storedProfile?.physical
+        // Get stored profile for email and HealthKit sync state
+        guard let userUUID = UUID(uuidString: userId) else {
+            throw APIError.invalidUserId
+        }
+        let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
 
-        // Compose UserProfile from metadata + stored physical
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
+        // Use DTO's toDomain() method to create unified UserProfile
+        let profile = try metadata.toDomain(
+            email: storedProfile?.email ?? "",
             hasPerformedInitialHealthKitSync: storedProfile?.hasPerformedInitialHealthKitSync
                 ?? false,
             lastSuccessfulDailySyncDate: storedProfile?.lastSuccessfulDailySyncDate
@@ -341,31 +320,27 @@ final class UserProfileMetadataClient {
 
         // Decode response
         let decoder = configuredDecoder()
-        let metadata: UserProfileMetadata
+        let metadata: UserProfileResponseDTO
         do {
             let successResponse = try decoder.decode(
                 StandardResponse<UserProfileResponseDTO>.self, from: data)
-            metadata = try successResponse.data.toDomain()
-            print("UserProfileMetadataClient: ✅ Successfully updated profile metadata")
+            metadata = successResponse.data
+            print("UserProfileMetadataClient: ✅ Metadata updated successfully (wrapped)")
         } catch {
             print("UserProfileMetadataClient: Trying direct decode...")
-            let profileDTO = try decoder.decode(UserProfileResponseDTO.self, from: data)
-            metadata = try profileDTO.toDomain()
-            print("UserProfileMetadataClient: ✅ Successfully updated profile metadata")
+            metadata = try decoder.decode(UserProfileResponseDTO.self, from: data)
+            print("UserProfileMetadataClient: ✅ Metadata updated successfully (direct)")
         }
 
-        // Get stored profile for email/username/physical
-        let storedProfile = try? await userProfileStorage.fetch(forUserID: metadata.userId)
-        let email = storedProfile?.email
-        let username = storedProfile?.username
-        let physical = storedProfile?.physical
+        // Get stored profile for email and HealthKit sync state
+        guard let userUUID = UUID(uuidString: userId) else {
+            throw APIError.invalidUserId
+        }
+        let storedProfile = try? await userProfileStorage.fetch(forUserID: userUUID)
 
-        // Compose UserProfile from updated metadata + stored physical
-        let profile = UserProfile(
-            metadata: metadata,
-            physical: physical,
-            email: email,
-            username: username,
+        // Use DTO's toDomain() method to create unified UserProfile
+        let profile = try metadata.toDomain(
+            email: storedProfile?.email ?? "",
             hasPerformedInitialHealthKitSync: storedProfile?.hasPerformedInitialHealthKitSync
                 ?? false,
             lastSuccessfulDailySyncDate: storedProfile?.lastSuccessfulDailySyncDate

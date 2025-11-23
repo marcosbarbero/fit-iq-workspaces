@@ -170,20 +170,25 @@ struct LoginRequest: Encodable {
 // MARK: - Domain Mapping Extensions
 
 extension UserProfileResponseDTO {
-    /// Converts the backend profile DTO to UserProfileMetadata domain model
+    /// Converts the backend profile DTO to FitIQCore.UserProfile domain model
     ///
-    /// This maps the profile metadata from /api/v1/users/me to the domain model.
-    /// Physical attributes come from a separate endpoint.
+    /// This maps the profile metadata from /api/v1/users/me to the unified profile model.
+    /// Physical attributes (biologicalSex, heightCm) are included if available.
     ///
-    /// - Returns: UserProfileMetadata domain model
+    /// **Phase 2.1 Migration:** Now returns FitIQCore.UserProfile directly
+    ///
+    /// - Parameters:
+    ///   - email: User's email (from JWT or stored locally)
+    ///   - hasPerformedInitialHealthKitSync: Local HealthKit sync state
+    ///   - lastSuccessfulDailySyncDate: Last HealthKit sync date
+    /// - Returns: FitIQCore.UserProfile domain model
     /// - Throws: DTOConversionError if data is invalid
-    func toDomain() throws -> UserProfileMetadata {
-        // Parse profile ID
-        guard let profileId = UUID(uuidString: id) else {
-            throw DTOConversionError.invalidProfileId(id)
-        }
-
-        // Parse user ID
+    func toDomain(
+        email: String? = nil,
+        hasPerformedInitialHealthKitSync: Bool = false,
+        lastSuccessfulDailySyncDate: Date? = nil
+    ) throws -> FitIQCore.UserProfile {
+        // Parse user ID (use userId field from DTO)
         guard let userUUID = UUID(uuidString: userId) else {
             throw DTOConversionError.invalidUserId(userId)
         }
@@ -216,15 +221,20 @@ extension UserProfileResponseDTO {
             updatedAtDate = parsed
         }
 
-        // Create UserProfileMetadata
-        return UserProfileMetadata(
-            id: profileId,
-            userId: userUUID,
+        // Create FitIQCore.UserProfile with all available data
+        return FitIQCore.UserProfile(
+            id: userUUID,
+            email: email ?? "",
             name: name,
             bio: bio,
-            preferredUnitSystem: preferredUnitSystem,
+            username: nil,
             languageCode: languageCode,
             dateOfBirth: parsedDateOfBirth,
+            biologicalSex: biologicalSex,
+            heightCm: heightCm,
+            preferredUnitSystem: preferredUnitSystem,
+            hasPerformedInitialHealthKitSync: hasPerformedInitialHealthKitSync,
+            lastSuccessfulDailySyncDate: lastSuccessfulDailySyncDate,
             createdAt: createdAtDate,
             updatedAt: updatedAtDate
         )
@@ -232,25 +242,25 @@ extension UserProfileResponseDTO {
 }
 
 extension PhysicalProfileResponseDTO {
-    /// Converts the backend physical profile DTO to PhysicalProfile domain model
+    /// Converts the backend physical profile DTO to update fields for FitIQCore.UserProfile
     ///
-    /// This maps the physical attributes from /api/v1/users/me/physical to the domain model.
+    /// This maps the physical attributes from /api/v1/users/me/physical.
+    /// Use this to update an existing profile with physical data.
     ///
-    /// - Returns: PhysicalProfile domain model
+    /// **Phase 2.1 Migration:** Returns tuple for updating existing profile
+    ///
+    /// - Returns: Tuple with physical attributes
     /// - Throws: DTOConversionError if data is invalid
-    func toDomain() throws -> PhysicalProfile {
+    func toPhysicalAttributes() throws -> (
+        biologicalSex: String?, heightCm: Double?, dateOfBirth: Date?
+    ) {
         // Parse date of birth if present
         var parsedDateOfBirth: Date? = nil
         if let dobString = dateOfBirth, !dobString.isEmpty {
             parsedDateOfBirth = try dobString.toDateFromISO8601()
         }
 
-        // Create PhysicalProfile
-        return PhysicalProfile(
-            biologicalSex: biologicalSex,
-            heightCm: heightCm,
-            dateOfBirth: parsedDateOfBirth
-        )
+        return (biologicalSex: biologicalSex, heightCm: heightCm, dateOfBirth: parsedDateOfBirth)
     }
 }
 
@@ -388,30 +398,34 @@ enum DTOConversionError: Error, LocalizedError {
 // MARK: - Request Builders
 
 extension UserProfileUpdateRequest {
-    /// Creates a request from UserProfileMetadata domain model
+    /// Creates a request from FitIQCore.UserProfile domain model
     ///
-    /// - Parameter metadata: The profile metadata to convert
+    /// **Phase 2.1 Migration:** Now uses FitIQCore.UserProfile
+    ///
+    /// - Parameter profile: The user profile to convert
     /// - Returns: UserProfileUpdateRequest for API
-    static func from(_ metadata: UserProfileMetadata) -> UserProfileUpdateRequest {
+    static func from(_ profile: FitIQCore.UserProfile) -> UserProfileUpdateRequest {
         return UserProfileUpdateRequest(
-            name: metadata.name,
-            preferredUnitSystem: metadata.preferredUnitSystem,
-            bio: metadata.bio,
-            languageCode: metadata.languageCode
+            name: profile.name,
+            preferredUnitSystem: profile.preferredUnitSystem,
+            bio: profile.bio,
+            languageCode: profile.languageCode
         )
     }
 }
 
 extension PhysicalProfileUpdateRequest {
-    /// Creates a request from PhysicalProfile domain model
+    /// Creates a request from FitIQCore.UserProfile domain model
     ///
-    /// - Parameter physical: The physical profile to convert
+    /// **Phase 2.1 Migration:** Now uses FitIQCore.UserProfile
+    ///
+    /// - Parameter profile: The user profile with physical attributes
     /// - Returns: PhysicalProfileUpdateRequest for API
-    static func from(_ physical: PhysicalProfile) -> PhysicalProfileUpdateRequest {
+    static func from(_ profile: FitIQCore.UserProfile) -> PhysicalProfileUpdateRequest {
         return PhysicalProfileUpdateRequest(
-            biologicalSex: physical.biologicalSex,
-            heightCm: physical.heightCm,
-            dateOfBirth: physical.dateOfBirth?.toISO8601DateString()
+            biologicalSex: profile.biologicalSex,
+            heightCm: profile.heightCm,
+            dateOfBirth: profile.dateOfBirth?.toISO8601DateString()
         )
     }
 }

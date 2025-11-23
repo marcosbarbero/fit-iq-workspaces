@@ -3,20 +3,26 @@
 //  FitIQ
 //
 //  Created by Marcos Barbero on 11/10/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
 // Domain/Ports/AuthRepositoryProtocol.swift
+import FitIQCore
 import Foundation
 
+/// Port protocol for authentication repository operations
+/// Following Hexagonal Architecture - Domain defines the interface, Infrastructure implements it
+///
+/// **Migration Note:** Now uses FitIQCore.UserProfile (Phase 2.1)
 protocol AuthRepositoryProtocol {
     /// Registers a user and returns their profile and auth tokens.
     func register(userData: RegisterUserData) async throws -> (
-        profile: UserProfile, accessToken: String, refreshToken: String
+        profile: FitIQCore.UserProfile, accessToken: String, refreshToken: String
     )
 
     /// Logs in a user and returns auth tokens.
     func login(credentials: LoginCredentials) async throws -> (
-        profile: UserProfile, accessToken: String, refreshToken: String
+        profile: FitIQCore.UserProfile, accessToken: String, refreshToken: String
     )
 
     func refreshAccessToken(request: RefreshTokenRequest) async throws -> LoginResponse

@@ -3,18 +3,22 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 27/01/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
+import FitIQCore
 import Foundation
 
 /// Port protocol for user profile repository operations
 /// Following Hexagonal Architecture - Domain defines the interface, Infrastructure implements it
+///
+/// **Migration Note:** Now uses FitIQCore.UserProfile (Phase 2.1)
 protocol UserProfileRepositoryProtocol {
     /// Fetches the user profile for a given user ID from the backend
     /// - Parameter userId: The user's unique identifier
-    /// - Returns: UserProfile domain entity
+    /// - Returns: FitIQCore.UserProfile domain entity
     /// - Throws: APIError if the request fails
-    func getUserProfile(userId: String) async throws -> UserProfile
+    func getUserProfile(userId: String) async throws -> FitIQCore.UserProfile
 
     /// Updates the user's profile information (DEPRECATED - use updateProfileMetadata instead)
     /// - Parameters:
@@ -25,7 +29,7 @@ protocol UserProfileRepositoryProtocol {
     ///   - height: Optional height in cm to update
     ///   - weight: Optional weight in kg to update
     ///   - activityLevel: Optional activity level to update
-    /// - Returns: Updated UserProfile domain entity
+    /// - Returns: Updated FitIQCore.UserProfile domain entity
     /// - Throws: APIError if the request fails
     func updateProfile(
         userId: String,
@@ -35,7 +39,7 @@ protocol UserProfileRepositoryProtocol {
         height: Double?,
         weight: Double?,
         activityLevel: String?
-    ) async throws -> UserProfile
+    ) async throws -> FitIQCore.UserProfile
 
     /// Updates the user's profile metadata using the new API structure
     /// - Parameters:
@@ -44,7 +48,7 @@ protocol UserProfileRepositoryProtocol {
     ///   - bio: Biography/description (optional)
     ///   - preferredUnitSystem: "metric" or "imperial" (required)
     ///   - languageCode: ISO 639-1 language code (optional)
-    /// - Returns: Updated UserProfile domain entity
+    /// - Returns: Updated FitIQCore.UserProfile domain entity
     /// - Throws: APIError if the request fails
     func updateProfileMetadata(
         userId: String,
@@ -52,5 +56,5 @@ protocol UserProfileRepositoryProtocol {
         bio: String?,
         preferredUnitSystem: String,
         languageCode: String?
-    ) async throws -> UserProfile
+    ) async throws -> FitIQCore.UserProfile
 }

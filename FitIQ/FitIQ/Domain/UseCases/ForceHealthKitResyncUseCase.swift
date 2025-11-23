@@ -3,8 +3,10 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 27/01/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
+import FitIQCore
 import Foundation
 
 /// Protocol for forcing a manual re-sync from HealthKit
@@ -121,7 +123,10 @@ final class ForceHealthKitResyncUseCaseImpl: ForceHealthKitResyncUseCase {
 
         // Reset the sync flag to allow initial sync to run again
         print("\n🔄 Resetting initial sync flag...")
-        userProfile.hasPerformedInitialHealthKitSync = false
+        userProfile = userProfile.updatingHealthKitSync(
+            hasPerformedInitialSync: false,
+            lastSyncDate: nil
+        )
         try await userProfileStorage.save(userProfile: userProfile)
         print("✅ Flag reset successfully")
 
@@ -139,7 +144,10 @@ final class ForceHealthKitResyncUseCaseImpl: ForceHealthKitResyncUseCase {
             // Restore the original sync flag if re-sync failed
             if hadPerformedSync {
                 print("⚠️ Restoring original sync flag...")
-                userProfile.hasPerformedInitialHealthKitSync = true
+                userProfile = userProfile.updatingHealthKitSync(
+                    hasPerformedInitialSync: true,
+                    lastSyncDate: userProfile.lastSuccessfulDailySyncDate
+                )
                 try? await userProfileStorage.save(userProfile: userProfile)
             }
 

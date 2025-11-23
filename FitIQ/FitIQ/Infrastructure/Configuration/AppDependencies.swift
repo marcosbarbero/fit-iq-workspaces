@@ -55,9 +55,7 @@ class AppDependencies: ObservableObject {
     // User Profile Management
     let updateUserProfileUseCase: UpdateUserProfileUseCaseProtocol
     let userProfileRepository: UserProfileRepositoryProtocol
-    let getPhysicalProfileUseCase: GetPhysicalProfileUseCase
     let updateProfileMetadataUseCase: UpdateProfileMetadataUseCase
-    let updatePhysicalProfileUseCase: UpdatePhysicalProfileUseCase
     let profileEventPublisher: ProfileEventPublisherProtocol
     let profileSyncService: ProfileSyncServiceProtocol
     let healthKitProfileSyncService: HealthKitProfileSyncServiceProtocol
@@ -199,9 +197,7 @@ class AppDependencies: ObservableObject {
         saveBodyMassUseCase: SaveBodyMassUseCaseProtocol,
         updateUserProfileUseCase: UpdateUserProfileUseCaseProtocol,
         userProfileRepository: UserProfileRepositoryProtocol,
-        getPhysicalProfileUseCase: GetPhysicalProfileUseCase,
         updateProfileMetadataUseCase: UpdateProfileMetadataUseCase,
-        updatePhysicalProfileUseCase: UpdatePhysicalProfileUseCase,
         profileEventPublisher: ProfileEventPublisherProtocol,
         profileSyncService: ProfileSyncServiceProtocol,
         healthKitProfileSyncService: HealthKitProfileSyncServiceProtocol,
@@ -300,9 +296,7 @@ class AppDependencies: ObservableObject {
         self.saveBodyMassUseCase = saveBodyMassUseCase
         self.updateUserProfileUseCase = updateUserProfileUseCase
         self.userProfileRepository = userProfileRepository
-        self.getPhysicalProfileUseCase = getPhysicalProfileUseCase
         self.updateProfileMetadataUseCase = updateProfileMetadataUseCase
-        self.updatePhysicalProfileUseCase = updatePhysicalProfileUseCase
         self.profileEventPublisher = profileEventPublisher
         self.profileSyncService = profileSyncService
         self.healthKitProfileSyncService = healthKitProfileSyncService
@@ -881,22 +875,11 @@ class AppDependencies: ObservableObject {
         // NEW: Instantiate CloudDataManager
         _ = CloudDataManager(modelContainer: container)
 
-        // NEW: Physical Profile Management
-        let physicalProfileRepository = PhysicalProfileAPIClient(
-            networkClient: networkClient,
-            authTokenPersistence: keychainAuthTokenAdapter
-        )
-
-        let getPhysicalProfileUseCase = GetPhysicalProfileUseCaseImpl(
-            userProfileStorage: userProfileStorageAdapter
-        )
-
         // NEW: User Profile Management
         let userProfileRepository = UserProfileAPIClient(
             networkClient: networkClient,
             authTokenPersistence: keychainAuthTokenAdapter,
-            userProfileStorage: userProfileStorageAdapter,
-            physicalProfileRepository: physicalProfileRepository
+            userProfileStorage: userProfileStorageAdapter
         )
 
         let updateUserProfileUseCase = UpdateUserProfileUseCase(
@@ -904,14 +887,13 @@ class AppDependencies: ObservableObject {
             userProfileStorage: userProfileStorageAdapter
         )
 
-        // Login use case needs userProfileRepository and getPhysicalProfileUseCase
+        // Login use case needs userProfileRepository
         let loginUserUseCase = AuthenticateUserUseCase(
             authRepository: authRepository,
             authManager: authManager,
             authTokenPersistence: keychainAuthTokenAdapter,
             userProfileStorage: userProfileStorageAdapter,
-            userProfileRepository: userProfileRepository,
-            getPhysicalProfileUseCase: getPhysicalProfileUseCase
+            userProfileRepository: userProfileRepository
         )
 
         // NEW: Profile Event Publisher
@@ -928,16 +910,9 @@ class AppDependencies: ObservableObject {
             progressRepository: progressRepository
         )
 
-        let updatePhysicalProfileUseCase = UpdatePhysicalProfileUseCaseImpl(
-            userProfileStorage: userProfileStorageAdapter,
-            eventPublisher: profileEventPublisher,
-            logHeightProgressUseCase: logHeightProgressUseCase
-        )
-
         // NEW: Sync Biological Sex from HealthKit Use Case
         let syncBiologicalSexFromHealthKitUseCase = SyncBiologicalSexFromHealthKitUseCaseImpl(
-            userProfileStorage: userProfileStorageAdapter,
-            physicalProfileRepository: physicalProfileRepository
+            userProfileStorage: userProfileStorageAdapter
         )
 
         // NEW: Delete All User Data Use Case
@@ -962,7 +937,6 @@ class AppDependencies: ObservableObject {
         let profileSyncService = ProfileSyncService(
             profileEventPublisher: profileEventPublisher,
             userProfileRepository: userProfileRepository,
-            physicalProfileRepository: physicalProfileRepository,
             userProfileStorage: userProfileStorageAdapter,
             authManager: authManager
         )
@@ -1067,9 +1041,7 @@ class AppDependencies: ObservableObject {
             saveBodyMassUseCase: saveBodyMassUseCase,
             updateUserProfileUseCase: updateUserProfileUseCase,
             userProfileRepository: userProfileRepository,
-            getPhysicalProfileUseCase: getPhysicalProfileUseCase,
             updateProfileMetadataUseCase: updateProfileMetadataUseCase,
-            updatePhysicalProfileUseCase: updatePhysicalProfileUseCase,
             profileEventPublisher: profileEventPublisher,
             profileSyncService: profileSyncService,
             healthKitProfileSyncService: healthKitProfileSyncService,

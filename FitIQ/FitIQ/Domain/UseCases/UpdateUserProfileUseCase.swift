@@ -3,8 +3,10 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 27/01/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
+import FitIQCore
 import Foundation
 
 // MARK: - Use Case Protocol
@@ -30,7 +32,7 @@ protocol UpdateUserProfileUseCaseProtocol {
         height: Double?,
         weight: Double?,
         activityLevel: String?
-    ) async throws -> UserProfile
+    ) async throws -> FitIQCore.UserProfile
 }
 
 // MARK: - Use Case Implementation
@@ -64,7 +66,7 @@ final class UpdateUserProfileUseCase: UpdateUserProfileUseCaseProtocol {
         height: Double?,
         weight: Double?,
         activityLevel: String?
-    ) async throws -> UserProfile {
+    ) async throws -> FitIQCore.UserProfile {
         print("UpdateUserProfileUseCase: Updating profile for user: \(userId)")
 
         // Validation

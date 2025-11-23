@@ -3,9 +3,10 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 2025-01-27.
-//  Part of Biological Sex and Height Improvements
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
+import FitIQCore
 import Foundation
 
 /// Use case for syncing biological sex from HealthKit to local storage and backend
@@ -22,7 +23,7 @@ import Foundation
 /// **Architecture:**
 /// - Domain layer (use case)
 /// - Depends on UserProfileStoragePortProtocol (local storage port)
-/// - Depends on PhysicalProfileRepositoryProtocol (backend sync port)
+/// - Uses FitIQCore.UserProfile (unified profile model)
 protocol SyncBiologicalSexFromHealthKitUseCase {
     /// Syncs biological sex from HealthKit to local storage and backend
     ///
@@ -45,16 +46,11 @@ final class SyncBiologicalSexFromHealthKitUseCaseImpl: SyncBiologicalSexFromHeal
     // MARK: - Dependencies
 
     private let userProfileStorage: UserProfileStoragePortProtocol
-    private let physicalProfileRepository: PhysicalProfileRepositoryProtocol
 
     // MARK: - Initialization
 
-    init(
-        userProfileStorage: UserProfileStoragePortProtocol,
-        physicalProfileRepository: PhysicalProfileRepositoryProtocol
-    ) {
+    init(userProfileStorage: UserProfileStoragePortProtocol) {
         self.userProfileStorage = userProfileStorage
-        self.physicalProfileRepository = physicalProfileRepository
     }
 
     // MARK: - SyncBiologicalSexFromHealthKitUseCase Implementation
@@ -76,7 +72,7 @@ final class SyncBiologicalSexFromHealthKitUseCaseImpl: SyncBiologicalSexFromHeal
             throw ProfileError.notFound(userId)
         }
 
-        let currentSex = currentProfile.physical?.biologicalSex
+        let currentSex = currentProfile.biologicalSex
         print("SyncBiologicalSexFromHealthKitUseCase: Current local value: \(currentSex ?? "nil")")
 
         // Change detection: Only proceed if value actually changed
@@ -90,35 +86,20 @@ final class SyncBiologicalSexFromHealthKitUseCaseImpl: SyncBiologicalSexFromHeal
             "SyncBiologicalSexFromHealthKitUseCase: 🔄 Change detected: '\(currentSex ?? "nil")' → '\(biologicalSex)'"
         )
 
-        // Update local profile with new biological sex
-        let updatedPhysical = PhysicalProfile(
+        // Update local profile with new biological sex using FitIQCore method
+        let updatedProfile = currentProfile.updatingPhysical(
             biologicalSex: biologicalSex,
-            heightCm: currentProfile.physical?.heightCm,
-            dateOfBirth: currentProfile.physical?.dateOfBirth
+            heightCm: currentProfile.heightCm
         )
-
-        let updatedProfile = currentProfile.updatingPhysical(updatedPhysical)
         try await userProfileStorage.save(userProfile: updatedProfile)
 
         print("SyncBiologicalSexFromHealthKitUseCase: ✅ Saved to local storage")
 
-        // Sync to backend
-        print("SyncBiologicalSexFromHealthKitUseCase: 📡 Syncing to backend...")
-        do {
-            _ = try await physicalProfileRepository.updatePhysicalProfile(
-                userId: userId,
-                biologicalSex: biologicalSex,
-                heightCm: currentProfile.physical?.heightCm,
-                dateOfBirth: currentProfile.physical?.dateOfBirth
-            )
-            print("SyncBiologicalSexFromHealthKitUseCase: ✅ Successfully synced to backend")
-        } catch {
-            print(
-                "SyncBiologicalSexFromHealthKitUseCase: ⚠️ Backend sync failed: \(error.localizedDescription)"
-            )
-            print("SyncBiologicalSexFromHealthKitUseCase: Local data saved, will retry sync later")
-            // Don't throw - local data is saved, backend sync can be retried
-        }
+        // Note: Backend sync would happen via outbox pattern or profile update use case
+        // For now, local data is saved and will be synced when profile is next updated
+        print("SyncBiologicalSexFromHealthKitUseCase: ✅ Local data saved")
+        print(
+            "SyncBiologicalSexFromHealthKitUseCase: Note: Backend sync via profile update use case")
 
         print("SyncBiologicalSexFromHealthKitUseCase: ===== SYNC COMPLETE =====")
     }

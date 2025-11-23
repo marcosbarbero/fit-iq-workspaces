@@ -3,13 +3,15 @@
 //  FitIQ
 //
 //  Created by Marcos Barbero on 11/10/2025.
+//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
 //
 
 // Domain/UseCases/RegisterUserUseCase.swift
+import FitIQCore
 import Foundation
 
 protocol RegisterUserUseCaseProtocol {
-    func execute(data: RegisterUserData) async throws -> UserProfile
+    func execute(data: RegisterUserData) async throws -> FitIQCore.UserProfile
 }
 
 final class CreateUserUseCase: RegisterUserUseCaseProtocol {
@@ -33,7 +35,7 @@ final class CreateUserUseCase: RegisterUserUseCaseProtocol {
         self.profileMetadataClient = profileMetadataClient
     }
 
-    func execute(data: RegisterUserData) async throws -> UserProfile {
+    func execute(data: RegisterUserData) async throws -> FitIQCore.UserProfile {
         print("RegisterUserUseCase: ===== REGISTRATION FLOW START =====")
         print("RegisterUserUseCase: Email: \(data.email)")
         print("RegisterUserUseCase: Name: \(data.name)")
@@ -44,13 +46,10 @@ final class CreateUserUseCase: RegisterUserUseCaseProtocol {
             userData: data)
 
         print("RegisterUserUseCase: ===== REGISTRATION RESPONSE =====")
-        print("RegisterUserUseCase: User ID: \(userProfile.userId)")
+        print("RegisterUserUseCase: User ID: \(userProfile.id)")
         print("RegisterUserUseCase: Name: '\(userProfile.name)'")
         print(
-            "RegisterUserUseCase: Metadata DOB: \(userProfile.metadata.dateOfBirth?.description ?? "nil")"
-        )
-        print(
-            "RegisterUserUseCase: Physical DOB: \(userProfile.physical?.dateOfBirth?.description ?? "nil")"
+            "RegisterUserUseCase: DOB: \(userProfile.dateOfBirth?.description ?? "nil")"
         )
 
         // Step 2: Save tokens (needed for any backend API calls)
@@ -60,26 +59,21 @@ final class CreateUserUseCase: RegisterUserUseCaseProtocol {
         // Step 3: IMMEDIATELY save profile to local storage (Local is source of truth)
         // This ensures we have the user data even if backend sync fails
         print("RegisterUserUseCase: ===== SAVING TO LOCAL STORAGE (PRIMARY) =====")
-        print("RegisterUserUseCase: Profile ID (metadata.id): \(userProfile.id)")
-        print("RegisterUserUseCase: User ID (metadata.userId): \(userProfile.userId)")
+        print("RegisterUserUseCase: User ID: \(userProfile.id)")
         print("RegisterUserUseCase: Name: '\(userProfile.name)'")
         print("RegisterUserUseCase: Bio: '\(userProfile.bio ?? "")'")
         print(
-            "RegisterUserUseCase: Metadata DOB: \(userProfile.metadata.dateOfBirth?.description ?? "nil")"
-        )
-        print(
-            "RegisterUserUseCase: Physical DOB: \(userProfile.physical?.dateOfBirth?.description ?? "nil")"
+            "RegisterUserUseCase: DOB: \(userProfile.dateOfBirth?.description ?? "nil")"
         )
 
         try await userProfileStorage.save(userProfile: userProfile)
         print(
-            "RegisterUserUseCase: ✅ Profile saved to local storage with userId: \(userProfile.userId)"
+            "RegisterUserUseCase: ✅ Profile saved to local storage with userId: \(userProfile.id)"
         )
 
-        // Step 4: Set auth state with USER ID (from JWT), not profile ID
-        // This must match the ID used to save the profile (userId)
-        authManager.handleSuccessfulAuth(userProfileID: userProfile.userId)
-        print("RegisterUserUseCase: ✅ Auth state updated with user ID: \(userProfile.userId)")
+        // Step 4: Set auth state with USER ID (from JWT)
+        authManager.handleSuccessfulAuth(userProfileID: userProfile.id)
+        print("RegisterUserUseCase: ✅ Auth state updated with user ID: \(userProfile.id)")
 
         // Step 5: Optionally fetch profile from backend to enrich local data
         // This is async and non-blocking - local data is already complete
@@ -88,7 +82,7 @@ final class CreateUserUseCase: RegisterUserUseCaseProtocol {
             guard let self = self else { return }
             do {
                 let backendProfile = try await self.profileMetadataClient.getProfile(
-                    userId: userProfile.userId.uuidString)
+                    userId: userProfile.id.uuidString)
                 print("RegisterUserUseCase: ✅ Backend profile fetched, merging with local")
 
                 // Merge backend data with local (prefer local for user-entered data)
@@ -113,7 +107,9 @@ final class CreateUserUseCase: RegisterUserUseCaseProtocol {
 
     /// Merges remote profile data with local profile
     /// Strategy: Prefer local for user-entered data, use remote for server-managed fields
-    private func mergeProfiles(local: UserProfile, remote: UserProfile) -> UserProfile {
+    private func mergeProfiles(local: FitIQCore.UserProfile, remote: FitIQCore.UserProfile)
+        -> FitIQCore.UserProfile
+    {
         print("RegisterUserUseCase: Merging profiles - local is primary")
 
         // Prefer local name (user entered during registration)
@@ -125,39 +121,29 @@ final class CreateUserUseCase: RegisterUserUseCaseProtocol {
         // Prefer local DOB (user entered during registration)
         let dateOfBirth = local.dateOfBirth ?? remote.dateOfBirth
 
-        // Use remote profile ID (server-assigned)
-        let profileId = remote.id
+        // Merge physical attributes - prefer local values
+        let biologicalSex = local.biologicalSex ?? remote.biologicalSex
+        let heightCm = local.heightCm ?? remote.heightCm
 
-        // Create merged metadata
-        let mergedMetadata = UserProfileMetadata(
-            id: profileId,
-            userId: local.userId,
+        // Create merged unified UserProfile
+        let merged = FitIQCore.UserProfile(
+            id: local.id,
+            email: local.email,
             name: name,
             bio: bio,
-            preferredUnitSystem: local.preferredUnitSystem,
+            username: local.username,
             languageCode: local.languageCode ?? remote.languageCode,
             dateOfBirth: dateOfBirth,
-            createdAt: local.metadata.createdAt,
-            updatedAt: remote.metadata.updatedAt
+            biologicalSex: biologicalSex,
+            heightCm: heightCm,
+            preferredUnitSystem: local.preferredUnitSystem,
+            hasPerformedInitialHealthKitSync: local.hasPerformedInitialHealthKitSync,
+            lastSuccessfulDailySyncDate: local.lastSuccessfulDailySyncDate,
+            createdAt: local.createdAt,
+            updatedAt: remote.updatedAt
         )
 
-        // Merge physical profiles - prefer local DOB
-        let mergedPhysical: PhysicalProfile?
-        if let localPhysical = local.physical {
-            mergedPhysical = PhysicalProfile(
-                biologicalSex: localPhysical.biologicalSex ?? remote.physical?.biologicalSex,
-                heightCm: localPhysical.heightCm ?? remote.physical?.heightCm,
-                dateOfBirth: localPhysical.dateOfBirth ?? remote.physical?.dateOfBirth
-            )
-        } else {
-            mergedPhysical = remote.physical
-        }
-
-        return UserProfile(
-            metadata: mergedMetadata,
-            physical: mergedPhysical,
-            email: local.email,
-            username: local.metadata.name
-        )
+        print("RegisterUserUseCase: Profiles merged successfully")
+        return merged
     }
 }

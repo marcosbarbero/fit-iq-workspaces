@@ -5,6 +5,7 @@
 //  Created by Marcos Barbero on 11/10/2025.
 //
 
+import FitIQCore
 import Foundation
 import SwiftUI
 
@@ -21,171 +22,16 @@ struct ProfileView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-
                 Spacer().frame(height: 2)
                 Text("Account")
                     .font(.headline)
-
                 Spacer()
 
-                // 1. Profile Header / Avatar Card
-                VStack(spacing: 15) {
-                    Image("ProfileImage")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(Circle())
-
-                    Text(viewModel.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    if let email = viewModel.userProfile?.email {
-                        Text(email)
-                            .font(.callout)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.vertical, 20)
-                .frame(maxWidth: .infinity)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(15)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                .padding(.horizontal)
-
-                // 2. Settings/Options Section (Placeholder)
-                VStack(spacing: 1) {
-                    // App Settings
-                    SettingRow(icon: "gear", title: "App Settings", color: .gray) {
-                        showingAppSettingsSheet = true
-                    }
-                    SettingRow(
-                        icon: "person.fill", title: "Edit Profile",
-                        color: .vitalityTeal
-                    ) {
-                        showingEditSheet = true
-                    }
-                    SettingRow(
-                        icon: "lock.shield.fill", title: "Privacy & Security", color: .ascendBlue
-                    ) {}
-
-                    // Update HealthKit Permissions
-                    Button {
-                        Task {
-                            await viewModel.reauthorizeHealthKit()
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "heart.text.square.fill")
-                                .foregroundColor(.red)
-                                .font(.system(size: 20))
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Update HealthKit Permissions")
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-
-                                if viewModel.isReauthorizingHealthKit {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                } else if let message = viewModel.reauthorizationMessage {
-                                    Text(message)
-                                        .font(.caption)
-                                        .foregroundColor(message.hasPrefix("✅") ? .green : .red)
-                                } else {
-                                    Text("Grant access to workout effort scores")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 16)
-                        .background(Color(.tertiarySystemBackground))
-                    }
-                    .disabled(viewModel.isReauthorizingHealthKit)
-                }
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(15)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                .padding(.horizontal)
-
-                // Physical Profile Data (from local storage)
-                VStack(spacing: 1) {
-                    // Weight - still from HealthKit (not stored in UserProfile)
-                    SettingRow(
-                        icon: "scalemass.fill",
-                        title: viewModel.bodyMetrics?.weightKg.map { String(format: "%.1f kg", $0) }
-                            ?? "Weight (N/A)", color: .gray
-                    ) {}
-
-                    // Date of Birth - from UserProfile.physical
-                    if let dob = viewModel.userProfile?.dateOfBirth {
-                        let dobFormatted = DateFormatHelper.formatMediumDate(dob)
-                        SettingRow(icon: "calendar", title: dobFormatted, color: .gray) {}
-                    } else {
-                        SettingRow(icon: "calendar", title: "Date of Birth (N/A)", color: .gray) {}
-                    }
-
-                    // Height - from UserProfile.physical
-                    if let heightCm = viewModel.userProfile?.physical?.heightCm {
-                        SettingRow(
-                            icon: "ruler",
-                            title: String(format: "%.0f cm", heightCm),
-                            color: .gray
-                        ) {}
-                    } else {
-                        SettingRow(icon: "ruler", title: "Height (N/A)", color: .gray) {}
-                    }
-                }
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(15)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                .padding(.horizontal)
-
-                // Delete All Data Button
-                Button {
-                    showingDeleteiCloudDataAlert = true
-                } label: {
-                    HStack {
-                        Image(systemName: "trash.circle.fill")
-                        Text("Delete All Data")
-                            .fontWeight(.bold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .foregroundColor(.alertRed)  // Use alert red for destructive action
-                    .cornerRadius(15)
-                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                }
-                .padding(.horizontal)
-                .disabled(viewModel.isDeletingCloudData)  // Disable button during deletion
-
-                // 3. Logout Button (Primary Functionality)
-                Button {
-                    showingLogoutAlert = true
-                } label: {
-                    HStack {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                        Text("Log Out")
-                            .fontWeight(.bold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .foregroundColor(.alertRed)  // Use the warning color for the text/icon
-                    .cornerRadius(15)
-                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                }
-                .padding(.top, 20)
-                .padding(.horizontal)
+                profileHeaderView
+                settingsOptionsView
+                physicalProfileDataView
+                deleteDataButton
+                logoutButton
 
                 Spacer()
             }
@@ -193,8 +39,6 @@ struct ProfileView: View {
         }
         .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
         .navigationBarTitleDisplayMode(.inline)
-
-        // Logout Confirmation Alert
         .alert("Confirm Logout", isPresented: $showingLogoutAlert) {
             Button("Log Out", role: .destructive) {
                 viewModel.logout()
@@ -203,7 +47,6 @@ struct ProfileView: View {
         } message: {
             Text("Are you sure you want to log out of FitIQ?")
         }
-        // Delete All Data Confirmation Alert
         .alert("Delete All Data", isPresented: $showingDeleteiCloudDataAlert) {
             Button("Delete All Data", role: .destructive) {
                 Task {
@@ -216,9 +59,6 @@ struct ProfileView: View {
                 "This will permanently delete ALL your FitIQ data from the server and this device. This action cannot be undone. Are you sure you want to proceed?"
             )
         }
-        // NEW: Deletion Success/Error Alerts
-        // Using an overlay with a ProgressView for deletion in progress,
-        // and a more direct alert for error, as success will trigger logout.
         .overlay {
             if viewModel.isDeletingCloudData {
                 ProgressView("Deleting data...")
@@ -231,7 +71,7 @@ struct ProfileView: View {
             "Deletion Failed",
             isPresented: Binding<Bool>(
                 get: { viewModel.deletionError != nil },
-                set: { _ in viewModel.deletionError = nil }  // Clear error when alert is dismissed
+                set: { _ in viewModel.deletionError = nil }
             )
         ) {
             Button("OK") {}
@@ -248,7 +88,6 @@ struct ProfileView: View {
             EditProfileSheet(viewModel: viewModel, isPresented: $showingEditSheet)
         }
         .onChange(of: showingEditSheet) { oldValue, newValue in
-            // Reload profile data when edit sheet is dismissed
             if oldValue == true && newValue == false {
                 Task {
                     await viewModel.loadUserProfile()
@@ -259,13 +98,191 @@ struct ProfileView: View {
             AppSettingsView(viewModel: viewModel)
         }
         .onChange(of: showingAppSettingsSheet) { oldValue, newValue in
-            // Reload profile data when app settings sheet is dismissed
             if oldValue == true && newValue == false {
                 Task {
                     await viewModel.loadUserProfile()
                 }
             }
         }
+    }
+
+    // MARK: - Subviews
+
+    private var profileHeaderView: some View {
+        VStack(spacing: 15) {
+            Image("ProfileImage")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 80, height: 80)
+                .clipShape(Circle())
+
+            Text(viewModel.name)
+                .font(.title2)
+                .fontWeight(.bold)
+
+            if let email = viewModel.userProfile?.email {
+                Text(email)
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+
+    private var settingsOptionsView: some View {
+        VStack(spacing: 1) {
+            SettingRow(icon: "gear", title: "App Settings", color: .gray) {
+                showingAppSettingsSheet = true
+            }
+            SettingRow(
+                icon: "person.fill", title: "Edit Profile",
+                color: .vitalityTeal
+            ) {
+                showingEditSheet = true
+            }
+            SettingRow(
+                icon: "lock.shield.fill", title: "Privacy & Security", color: .ascendBlue
+            ) {}
+
+            healthKitPermissionsButton
+        }
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+
+    private var healthKitPermissionsButton: some View {
+        Button {
+            Task {
+                await viewModel.reauthorizeHealthKit()
+            }
+        } label: {
+            HStack {
+                Image(systemName: "heart.text.square.fill")
+                    .foregroundColor(.red)
+                    .font(.system(size: 20))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Update HealthKit Permissions")
+                        .font(.body)
+                        .foregroundColor(.primary)
+
+                    if viewModel.isReauthorizingHealthKit {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if let message = viewModel.reauthorizationMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundColor(message.hasPrefix("✅") ? .green : .red)
+                    } else {
+                        Text("Grant access to workout effort scores")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(Color(.tertiarySystemBackground))
+        }
+        .disabled(viewModel.isReauthorizingHealthKit)
+    }
+
+    private var physicalProfileDataView: some View {
+        VStack(spacing: 1) {
+            weightRow
+            dateOfBirthRow
+            heightRow
+        }
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+
+    private var weightRow: some View {
+        SettingRow(
+            icon: "scalemass.fill",
+            title: viewModel.bodyMetrics?.weightKg.map { String(format: "%.1f kg", $0) }
+                ?? "Weight (N/A)", color: .gray
+        ) {}
+    }
+
+    private var dateOfBirthRow: some View {
+        Group {
+            if let dob = viewModel.userProfile?.dateOfBirth {
+                let dobFormatted = DateFormatHelper.formatMediumDate(dob)
+                SettingRow(icon: "calendar", title: dobFormatted, color: .gray) {}
+            } else {
+                SettingRow(icon: "calendar", title: "Date of Birth (N/A)", color: .gray) {}
+            }
+        }
+    }
+
+    private var heightRow: some View {
+        Group {
+            if let heightCm = viewModel.userProfile?.heightCm {
+                SettingRow(
+                    icon: "ruler",
+                    title: String(format: "%.0f cm", heightCm),
+                    color: .gray
+                ) {}
+            } else {
+                SettingRow(icon: "ruler", title: "Height (N/A)", color: .gray) {}
+            }
+        }
+    }
+
+    private var deleteDataButton: some View {
+        Button {
+            showingDeleteiCloudDataAlert = true
+        } label: {
+            HStack {
+                Image(systemName: "trash.circle.fill")
+                Text("Delete All Data")
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .foregroundColor(.alertRed)
+            .cornerRadius(15)
+            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        }
+        .padding(.horizontal)
+        .disabled(viewModel.isDeletingCloudData)
+    }
+
+    private var logoutButton: some View {
+        Button {
+            showingLogoutAlert = true
+        } label: {
+            HStack {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                Text("Log Out")
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .foregroundColor(.alertRed)
+            .cornerRadius(15)
+            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        }
+        .padding(.top, 20)
+        .padding(.horizontal)
     }
 }
 
