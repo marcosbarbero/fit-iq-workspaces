@@ -8,6 +8,7 @@
 //  UPDATED: 2025-01-27 - Changed to fetch from HealthKit for real-time updates with exact timestamps
 //
 
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -36,16 +37,16 @@ final class GetLatestHeartRateUseCaseImpl: GetLatestHeartRateUseCase {
 
     // MARK: - Dependencies
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let authManager: AuthManager
 
     // MARK: - Initialization
 
     init(
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         authManager: AuthManager
     ) {
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.authManager = authManager
     }
 
@@ -57,15 +58,14 @@ final class GetLatestHeartRateUseCaseImpl: GetLatestHeartRateUseCase {
             throw GetLatestHeartRateError.userNotAuthenticated
         }
 
-        print("GetLatestHeartRateUseCase: 🔍 REAL-TIME - Fetching latest heart rate from HealthKit")
-
-        // Fetch the single most recent heart rate sample directly from HealthKit
-        let sample = try await healthRepository.fetchLatestQuantitySample(
-            for: .heartRate,
-            unit: .count().unitDivided(by: .minute())  // BPM
+        print(
+            "GetLatestHeartRateUseCase: 🔍 REAL-TIME - Fetching latest heart rate from HealthKit (FitIQCore)"
         )
 
-        guard let result = sample else {
+        // Fetch the single most recent heart rate sample directly from HealthKit via FitIQCore
+        let metric = try await healthKitService.queryLatest(type: .heartRate)
+
+        guard let result = metric else {
             print("GetLatestHeartRateUseCase: ⚠️ No heart rate samples found in HealthKit")
             return nil
         }
@@ -84,7 +84,7 @@ final class GetLatestHeartRateUseCaseImpl: GetLatestHeartRateUseCase {
         let timeString = result.date.formattedHourMinute()
 
         print(
-            "GetLatestHeartRateUseCase: ✅ Latest heart rate: \(Int(result.value)) bpm at \(timeString) (exact timestamp from HealthKit)"
+            "GetLatestHeartRateUseCase: ✅ Latest heart rate: \(Int(result.value)) bpm at \(timeString) (exact timestamp from HealthKit via FitIQCore)"
         )
 
         return (heartRate: result.value, timestamp: result.date)

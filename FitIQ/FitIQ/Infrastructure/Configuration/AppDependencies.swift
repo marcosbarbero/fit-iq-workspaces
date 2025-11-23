@@ -17,6 +17,25 @@ import SwiftUI
 
 class AppDependencies: ObservableObject {
 
+    // MARK: - FitIQCore Services (Direct Integration - Phase 2.2 Day 7)
+
+    /// FitIQCore's modern HealthKit service for querying and writing health data
+    lazy var healthKitService: HealthKitServiceProtocol = {
+        return HealthKitService(
+            healthStore: HKHealthStore(),
+            unitSystem: .metric
+        )
+    }()
+
+    /// FitIQCore's authorization service for managing HealthKit permissions
+    lazy var authService: HealthAuthorizationServiceProtocol = {
+        return HealthAuthorizationService(
+            healthStore: HKHealthStore()
+        )
+    }()
+
+    // MARK: - Core Dependencies
+
     let modelContainer: ModelContainer
     let networkClient: NetworkClientProtocol
     let registerUserUseCase: RegisterUserUseCaseProtocol
@@ -446,7 +465,9 @@ class AppDependencies: ObservableObject {
             userProfile: userProfileStorageAdapter
         )
 
-        let healthKitAuthUseCase = HealthKitAuthorizationUseCase(healthRepository: healthRepository)
+        // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
+        let healthKitAuthUseCase = HealthKitAuthorizationUseCase(
+            authService: healthAuthService)
 
         let getLatestBodyMetricsUseCase = GetLatestBodyMetricsUseCase(
             healthRepository: healthRepository)
@@ -814,9 +835,10 @@ class AppDependencies: ObservableObject {
         )
 
         // NEW: Get Historical Weight Use Case
+        // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
         let getHistoricalWeightUseCase = GetHistoricalWeightUseCaseImpl(
             progressRepository: progressRepository,
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             authManager: authManager,
             saveWeightProgressUseCase: saveWeightProgressUseCase
         )
@@ -847,8 +869,9 @@ class AppDependencies: ObservableObject {
         )
 
         // NEW: Get Latest Heart Rate Use Case (REAL-TIME: Fetches from HealthKit for exact timestamps)
+        // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
         let getLatestHeartRateUseCase = GetLatestHeartRateUseCaseImpl(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             authManager: authManager
         )
 
@@ -863,8 +886,9 @@ class AppDependencies: ObservableObject {
             authManager: authManager
         )
 
+        // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
         let getDailyStepsTotalUseCase = GetDailyStepsTotalUseCaseImpl(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             authManager: authManager
         )
 

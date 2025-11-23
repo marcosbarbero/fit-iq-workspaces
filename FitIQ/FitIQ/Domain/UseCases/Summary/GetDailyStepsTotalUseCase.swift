@@ -8,6 +8,7 @@
 //  UPDATED: 2025-01-27 - Changed to fetch from HealthKit for real-time updates with exact timestamps
 //
 
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -44,11 +45,11 @@ protocol GetDailyStepsTotalUseCase {
 
 final class GetDailyStepsTotalUseCaseImpl: GetDailyStepsTotalUseCase {
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let authManager: AuthManager
 
-    init(healthRepository: HealthRepositoryProtocol, authManager: AuthManager) {
-        self.healthRepository = healthRepository
+    init(healthKitService: HealthKitServiceProtocol, authManager: AuthManager) {
+        self.healthKitService = healthKitService
         self.authManager = authManager
     }
 
@@ -63,32 +64,31 @@ final class GetDailyStepsTotalUseCaseImpl: GetDailyStepsTotalUseCase {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
         print("================================================================================")
-        print("GetDailyStepsTotalUseCase: 🔍 REAL-TIME - Fetching steps from HealthKit")
+        print("GetDailyStepsTotalUseCase: 🔍 REAL-TIME - Fetching steps from HealthKit (FitIQCore)")
         print("  Start: \(startOfDay)")
         print("  End:   \(endOfDay)")
         print("--------------------------------------------------------------------------------")
 
-        // 1. Fetch total steps for the day from HealthKit
-        let totalStepsDouble = try await healthRepository.fetchSumOfQuantitySamples(
-            for: .stepCount,
-            unit: .count(),
+        // 1. Fetch total steps for the day from HealthKit via FitIQCore
+        let stats = try await healthKitService.queryStatistics(
+            type: .stepCount,
             from: startOfDay,
-            to: endOfDay
+            to: endOfDay,
+            options: HealthQueryOptions(
+                aggregation: .sum(.daily)
+            )
         )
 
-        let totalSteps = Int(totalStepsDouble ?? 0)
+        let totalSteps = Int(stats.sum ?? 0)
 
         // 2. Fetch latest individual sample to get exact timestamp
-        let latestSample = try await healthRepository.fetchLatestQuantitySample(
-            for: .stepCount,
-            unit: .count()
-        )
+        let latestMetric = try await healthKitService.queryLatest(type: .stepCount)
 
         // Ensure the latest sample is from today
         let latestTimestamp: Date?
-        if let sample = latestSample {
-            if calendar.isDate(sample.date, inSameDayAs: date) {
-                latestTimestamp = sample.date
+        if let metric = latestMetric {
+            if calendar.isDate(metric.date, inSameDayAs: date) {
+                latestTimestamp = metric.date
             } else {
                 // Latest sample is from a different day
                 latestTimestamp = nil
@@ -98,10 +98,10 @@ final class GetDailyStepsTotalUseCaseImpl: GetDailyStepsTotalUseCase {
         }
 
         print("--------------------------------------------------------------------------------")
-        print("GetDailyStepsTotalUseCase: ✅ TOTAL: \(totalSteps) steps")
+        print("GetDailyStepsTotalUseCase: ✅ TOTAL: \(totalSteps) steps (FitIQCore)")
         if let latest = latestTimestamp {
             print(
-                "GetDailyStepsTotalUseCase: ✅ Latest sample at: \(latest.formattedHourMinute()) (exact timestamp from HealthKit)"
+                "GetDailyStepsTotalUseCase: ✅ Latest sample at: \(latest.formattedHourMinute()) (exact timestamp from HealthKit via FitIQCore)"
             )
         } else {
             print("GetDailyStepsTotalUseCase: ⚠️ No steps recorded today yet")

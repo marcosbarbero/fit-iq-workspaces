@@ -5,6 +5,7 @@
 //  Created by AI Assistant on 27/01/2025.
 //
 
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -25,7 +26,7 @@ final class GetHistoricalWeightUseCaseImpl: GetHistoricalWeightUseCase {
     // MARK: - Dependencies
 
     private let progressRepository: ProgressRepositoryProtocol
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let authManager: AuthManager
     private let saveWeightProgressUseCase: SaveWeightProgressUseCase
 
@@ -38,12 +39,12 @@ final class GetHistoricalWeightUseCaseImpl: GetHistoricalWeightUseCase {
 
     init(
         progressRepository: ProgressRepositoryProtocol,
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         authManager: AuthManager,
         saveWeightProgressUseCase: SaveWeightProgressUseCase
     ) {
         self.progressRepository = progressRepository
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.authManager = authManager
         self.saveWeightProgressUseCase = saveWeightProgressUseCase
     }
@@ -147,26 +148,29 @@ final class GetHistoricalWeightUseCaseImpl: GetHistoricalWeightUseCase {
         endDate: Date,
         existingLocalEntries: [ProgressEntry]
     ) async {
-        print("GetHistoricalWeightUseCase: [Background] Fetching fresh HealthKit data...")
+        print(
+            "GetHistoricalWeightUseCase: [Background] Fetching fresh HealthKit data (FitIQCore)...")
 
-        // STEP 1: Fetch from HealthKit
+        // STEP 1: Fetch from HealthKit via FitIQCore
         var healthKitSamples: [(value: Double, date: Date)] = []
         do {
-            let predicate = HKQuery.predicateForSamples(
-                withStart: startDate,
-                end: endDate,
-                options: .strictStartDate
+            let options = HealthQueryOptions(
+                limit: nil,
+                sortOrder: .reverseChronological
             )
 
-            healthKitSamples = try await healthRepository.fetchQuantitySamples(
-                for: .bodyMass,
-                unit: .gramUnit(with: .kilo),
-                predicateProvider: { predicate },
-                limit: nil
+            let metrics = try await healthKitService.query(
+                type: .bodyMass,
+                from: startDate,
+                to: endDate,
+                options: options
             )
+
+            // Convert HealthMetric array to tuple array for existing logic
+            healthKitSamples = metrics.map { (value: $0.value, date: $0.date) }
 
             print(
-                "GetHistoricalWeightUseCase: [Background] ✅ Found \(healthKitSamples.count) HealthKit samples"
+                "GetHistoricalWeightUseCase: [Background] ✅ Found \(healthKitSamples.count) HealthKit samples (FitIQCore)"
             )
         } catch {
             print(
