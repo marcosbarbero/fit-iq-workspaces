@@ -1,0 +1,674 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		8463D30B2ED1F9FB0077D839 /* FitIQCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8463D30A2ED1F9FB0077D839 /* FitIQCore */; };
+		84C1803F2E9A407C00F68C8A /* Swinject in Frameworks */ = {isa = PBXBuildFile; productRef = 84C1803E2E9A407C00F68C8A /* Swinject */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8433E5A12E9957F100394B34 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8433E5892E9957F000394B34 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8433E5902E9957F000394B34;
+			remoteInfo = FitIQ;
+		};
+		8433E5AB2E9957F100394B34 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8433E5892E9957F000394B34 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8433E5902E9957F000394B34;
+			remoteInfo = FitIQ;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		8433E5912E9957F000394B34 /* FitIQ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitIQ.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8433E5A02E9957F100394B34 /* FitIQTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitIQTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8433E5AA2E9957F100394B34 /* FitIQUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitIQUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		84C180472E9A47B200F68C8A /* Exceptions for "FitIQ" folder in "FitIQ" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Infrastructure/Persistence/Schema/README.md,
+				Resources/Localization/README.md,
+			);
+			target = 8433E5902E9957F000394B34 /* FitIQ */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		8433E5932E9957F000394B34 /* FitIQ */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				84C180472E9A47B200F68C8A /* Exceptions for "FitIQ" folder in "FitIQ" target */,
+			);
+			path = FitIQ;
+			sourceTree = "<group>";
+		};
+		8433E5A32E9957F100394B34 /* FitIQTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FitIQTests;
+			sourceTree = "<group>";
+		};
+		8433E5AD2E9957F100394B34 /* FitIQUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FitIQUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8433E58E2E9957F000394B34 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84C1803F2E9A407C00F68C8A /* Swinject in Frameworks */,
+				8463D30B2ED1F9FB0077D839 /* FitIQCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8433E59D2E9957F100394B34 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8433E5A72E9957F100394B34 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8433E5882E9957F000394B34 = {
+			isa = PBXGroup;
+			children = (
+				8433E5932E9957F000394B34 /* FitIQ */,
+				8433E5A32E9957F100394B34 /* FitIQTests */,
+				8433E5AD2E9957F100394B34 /* FitIQUITests */,
+				84C1803C2E9A402C00F68C8A /* Frameworks */,
+				8433E5922E9957F000394B34 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8433E5922E9957F000394B34 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8433E5912E9957F000394B34 /* FitIQ.app */,
+				8433E5A02E9957F100394B34 /* FitIQTests.xctest */,
+				8433E5AA2E9957F100394B34 /* FitIQUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		84C1803C2E9A402C00F68C8A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8433E5902E9957F000394B34 /* FitIQ */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8433E5B42E9957F100394B34 /* Build configuration list for PBXNativeTarget "FitIQ" */;
+			buildPhases = (
+				8433E58D2E9957F000394B34 /* Sources */,
+				8433E58E2E9957F000394B34 /* Frameworks */,
+				8433E58F2E9957F000394B34 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8433E5932E9957F000394B34 /* FitIQ */,
+			);
+			name = FitIQ;
+			packageProductDependencies = (
+				84C1803E2E9A407C00F68C8A /* Swinject */,
+				8463D30A2ED1F9FB0077D839 /* FitIQCore */,
+			);
+			productName = FitIQ;
+			productReference = 8433E5912E9957F000394B34 /* FitIQ.app */;
+			productType = "com.apple.product-type.application";
+		};
+		8433E59F2E9957F100394B34 /* FitIQTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8433E5B72E9957F100394B34 /* Build configuration list for PBXNativeTarget "FitIQTests" */;
+			buildPhases = (
+				8433E59C2E9957F100394B34 /* Sources */,
+				8433E59D2E9957F100394B34 /* Frameworks */,
+				8433E59E2E9957F100394B34 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8433E5A22E9957F100394B34 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8433E5A32E9957F100394B34 /* FitIQTests */,
+			);
+			name = FitIQTests;
+			packageProductDependencies = (
+			);
+			productName = FitIQTests;
+			productReference = 8433E5A02E9957F100394B34 /* FitIQTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		8433E5A92E9957F100394B34 /* FitIQUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8433E5BA2E9957F100394B34 /* Build configuration list for PBXNativeTarget "FitIQUITests" */;
+			buildPhases = (
+				8433E5A62E9957F100394B34 /* Sources */,
+				8433E5A72E9957F100394B34 /* Frameworks */,
+				8433E5A82E9957F100394B34 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8433E5AC2E9957F100394B34 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8433E5AD2E9957F100394B34 /* FitIQUITests */,
+			);
+			name = FitIQUITests;
+			packageProductDependencies = (
+			);
+			productName = FitIQUITests;
+			productReference = 8433E5AA2E9957F100394B34 /* FitIQUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8433E5892E9957F000394B34 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					8433E5902E9957F000394B34 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					8433E59F2E9957F100394B34 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 8433E5902E9957F000394B34;
+					};
+					8433E5A92E9957F100394B34 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 8433E5902E9957F000394B34;
+					};
+				};
+			};
+			buildConfigurationList = 8433E58C2E9957F000394B34 /* Build configuration list for PBXProject "FitIQ" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				de,
+				es,
+				"pt-BR",
+				fr,
+			);
+			mainGroup = 8433E5882E9957F000394B34;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				84C1803D2E9A407C00F68C8A /* XCRemoteSwiftPackageReference "Swinject" */,
+				8463D3092ED1F9FB0077D839 /* XCLocalSwiftPackageReference "../FitIQCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8433E5922E9957F000394B34 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8433E5902E9957F000394B34 /* FitIQ */,
+				8433E59F2E9957F100394B34 /* FitIQTests */,
+				8433E5A92E9957F100394B34 /* FitIQUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8433E58F2E9957F000394B34 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8433E59E2E9957F100394B34 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8433E5A82E9957F100394B34 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8433E58D2E9957F000394B34 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8433E59C2E9957F100394B34 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8433E5A62E9957F100394B34 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8433E5A22E9957F100394B34 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8433E5902E9957F000394B34 /* FitIQ */;
+			targetProxy = 8433E5A12E9957F100394B34 /* PBXContainerItemProxy */;
+		};
+		8433E5AC2E9957F100394B34 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8433E5902E9957F000394B34 /* FitIQ */;
+			targetProxy = 8433E5AB2E9957F100394B34 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		8433E5B22E9957F100394B34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		8433E5B32E9957F100394B34 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		8433E5B52E9957F100394B34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FitIQ/FitIQ.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ./FitIQ/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSCameraUsageDescription = "The app needs access to your camera to take photos of meals for AI-powered food recognition and nutrition logging.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "We need access to read your Active Energy, Body Mass, and other metrics to calculate total daily calories.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "We save your logged meals and water consumption to HealthKit to provide a complete view of your nutrition.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The app needs access to the microphone to record your voice for meal dictation.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "The app needs access to your photo library to select meal photos for AI-powered food recognition and nutrition logging.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "The microphone is needed to record your voice when you tap the mic button to dictate your food and drink items.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcosbarbero.FitIQ;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8433E5B62E9957F100394B34 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FitIQ/FitIQ.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ./FitIQ/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSCameraUsageDescription = "The app needs access to your camera to take photos of meals for AI-powered food recognition and nutrition logging.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "We need access to read your Active Energy, Body Mass, and other metrics to calculate total daily calories.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "We save your logged meals and water consumption to HealthKit to provide a complete view of your nutrition.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The app needs access to the microphone to record your voice for meal dictation.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "The app needs access to your photo library to select meal photos for AI-powered food recognition and nutrition logging.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "The microphone is needed to record your voice when you tap the mic button to dictate your food and drink items.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcosbarbero.FitIQ;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8433E5B82E9957F100394B34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcosbarbero.FitIQTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FitIQ.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FitIQ";
+			};
+			name = Debug;
+		};
+		8433E5B92E9957F100394B34 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcosbarbero.FitIQTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FitIQ.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FitIQ";
+			};
+			name = Release;
+		};
+		8433E5BB2E9957F100394B34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcosbarbero.FitIQUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = FitIQ;
+			};
+			name = Debug;
+		};
+		8433E5BC2E9957F100394B34 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7CZ87KP234;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.marcosbarbero.FitIQUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = FitIQ;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8433E58C2E9957F000394B34 /* Build configuration list for PBXProject "FitIQ" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8433E5B22E9957F100394B34 /* Debug */,
+				8433E5B32E9957F100394B34 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8433E5B42E9957F100394B34 /* Build configuration list for PBXNativeTarget "FitIQ" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8433E5B52E9957F100394B34 /* Debug */,
+				8433E5B62E9957F100394B34 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8433E5B72E9957F100394B34 /* Build configuration list for PBXNativeTarget "FitIQTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8433E5B82E9957F100394B34 /* Debug */,
+				8433E5B92E9957F100394B34 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8433E5BA2E9957F100394B34 /* Build configuration list for PBXNativeTarget "FitIQUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8433E5BB2E9957F100394B34 /* Debug */,
+				8433E5BC2E9957F100394B34 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		8463D3092ED1F9FB0077D839 /* XCLocalSwiftPackageReference "../FitIQCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../FitIQCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		84C1803D2E9A407C00F68C8A /* XCRemoteSwiftPackageReference "Swinject" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Swinject/Swinject.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8463D30A2ED1F9FB0077D839 /* FitIQCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8463D3092ED1F9FB0077D839 /* XCLocalSwiftPackageReference "../FitIQCore" */;
+			productName = FitIQCore;
+		};
+		84C1803E2E9A407C00F68C8A /* Swinject */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84C1803D2E9A407C00F68C8A /* XCRemoteSwiftPackageReference "Swinject" */;
+			productName = Swinject;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 8433E5892E9957F000394B34 /* Project object */;
+}

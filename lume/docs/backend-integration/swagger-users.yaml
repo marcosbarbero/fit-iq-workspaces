@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  title: FitIQ Backend API - Users & Profile
+  version: 0.33.0
+  description: |
+    Users and Profile management endpoints for FitIQ Backend API.
+
+    This file contains all endpoints related to:
+    - User profile management
+    - Physical profile attributes
+    - Dietary and activity preferences
+    - User account management
+
+servers:
+  - url: /
+
+tags:
+  - name: Profile
+    description: User profile management
+  - name: Preferences
+    description: User preferences for diet and activity
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      name: X-API-Key
+      in: header
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        data:
+          type: object
+      required: [data]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+          required: [message]
+      required: [error]
+
+    UserProfileRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        bio: { type: string }
+        preferred_unit_system:
+          type: string
+          enum: [metric, imperial]
+          default: metric
+        language_code: { type: string }
+
+    UpdatePhysicalProfileRequest:
+      type: object
+      properties:
+        biological_sex: { type: string }
+        height_cm: { type: number }
+        date_of_birth:
+          type: string
+          format: date
+          description: Date of birth (YYYY-MM-DD)
+          example: "1990-01-15"
+
+    UserProfileResponseData:
+      type: object
+      properties:
+        id: { type: string }
+        user_id: { type: string }
+        name: { type: string }
+        bio: { type: string }
+        preferred_unit_system:
+          type: string
+          enum: [metric, imperial]
+        language_code: { type: string }
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+          description: Date of birth (YYYY-MM-DD)
+          example: "1990-01-15"
+        created_at: { type: string }
+        updated_at: { type: string }
+
+    DietaryActivityPreferencesRequest:
+      type: object
+      properties:
+        allergies:
+          type: array
+          items: { type: string }
+        dietary_restrictions:
+          type: array
+          items: { type: string }
+        food_dislikes:
+          type: array
+          items: { type: string }
+
+    DietaryActivityPreferencesResponseData:
+      type: object
+      properties:
+        id: { type: string }
+        user_profile_id: { type: string }
+        allergies:
+          type: array
+          items: { type: string }
+        dietary_restrictions:
+          type: array
+          items: { type: string }
+        food_dislikes:
+          type: array
+          items: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
+
+security:
+  - ApiKey: []
+  - BearerAuth: []
+
+paths:
+  /api/v1/users/me:
+    post:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Create user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserProfileRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        { $ref: "#/components/schemas/UserProfileResponseData" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Conflict (profile already exists)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    get:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Get current user's profile
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        { $ref: "#/components/schemas/UserProfileResponseData" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    put:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserProfileRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        { $ref: "#/components/schemas/UserProfileResponseData" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    delete:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Delete user account (GDPR - Right to be Forgotten)
+      description: |
+        Permanently deletes the user account and all associated data.
+        This action is irreversible and complies with GDPR requirements.
+
+        Deleted data includes:
+        - User profile and preferences
+        - All workouts, exercises, and progress logs
+        - All nutrition logs and meal templates
+        - All goals and consultations
+        - All activity snapshots and wellness data
+      responses:
+        "204":
+          description: No Content - User account successfully deleted
+        "401":
+          description: Unauthorized - Invalid or missing authentication
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not Found - User not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Internal Server Error - Failed to delete user account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/v1/users/me/physical:
+    patch:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Update physical profile attributes
+      description: Update biological sex and height for the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePhysicalProfileRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        { $ref: "#/components/schemas/UserProfileResponseData" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/users/me/preferences:
+    patch:
+      tags: [Preferences]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Create or update dietary and activity preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DietaryActivityPreferencesRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        {
+                          $ref: "#/components/schemas/DietaryActivityPreferencesResponseData",
+                        }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    get:
+      tags: [Preferences]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Get dietary and activity preferences
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        {
+                          $ref: "#/components/schemas/DietaryActivityPreferencesResponseData",
+                        }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Preferences not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    delete:
+      tags: [Preferences]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Delete dietary and activity preferences
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Preferences not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

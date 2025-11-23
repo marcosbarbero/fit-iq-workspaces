@@ -1,0 +1,789 @@
+openapi: 3.0.0
+info:
+  title: FitIQ Goals AI API
+  description: AI-powered goal suggestions, tips, and activity tracking
+  version: 1.0.0
+  contact:
+    name: FitIQ API Support
+    email: support@fitiq.com
+
+servers:
+  - url: https://api.fitiq.com
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Goals AI
+    description: AI-powered goal features (suggestions, tips, activities)
+
+paths:
+  /api/v1/goals/suggestions:
+    post:
+      tags:
+        - Goals AI
+      summary: Generate AI goal suggestions
+      description: |
+        Generates 3-5 personalized goal suggestions based on user's wellness data.
+        Uses AI to analyze physical profile, activity metrics, nutrition patterns,
+        and existing goals to suggest achievable, relevant goals.
+      operationId: getGoalSuggestions
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Successfully generated goal suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/SuggestionsResponse"
+              example:
+                success: true
+                data:
+                  suggestions:
+                    - title: "Walk 10,000 steps daily"
+                      description: "Based on your current average of 6,000 steps per day, gradually increasing to 10,000 steps is an achievable goal that will improve cardiovascular health and energy levels. Start by adding 500 steps per week until you reach the target."
+                      goal_type: "activity"
+                      target_value: 10000
+                      target_unit: "steps"
+                      rationale: "Your activity data shows you're already moderately active. This goal builds on your current habits without overwhelming you, and 10,000 steps is proven to provide significant health benefits."
+                      estimated_duration: 60
+                      difficulty: 2
+                    - title: "Increase protein intake to 150g/day"
+                      description: "Your current protein intake averages 100g per day. Gradually increasing to 150g will support your strength training goals and help maintain muscle mass. Focus on lean proteins like chicken, fish, tofu, and Greek yogurt."
+                      goal_type: "nutrition"
+                      target_value: 150
+                      target_unit: "grams"
+                      rationale: "With 3-4 workouts per week, higher protein intake will enhance recovery and muscle growth. This aligns with your active lifestyle and weight goals."
+                      estimated_duration: 90
+                      difficulty: 3
+                  count: 2
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/consultations/{consultationID}/suggest-goals:
+    post:
+      tags:
+        - Goals AI
+      summary: Generate AI goal suggestions from consultation
+      description: |
+        Generates personalized goal suggestions based on the active consultation context.
+        Uses the conversation history, AI persona, and user's wellness data to suggest
+        relevant, achievable goals. Supports 1-10 suggestions (default: 3).
+
+        The AI persona (nutritionist, fitness_coach, wellness_specialist) influences
+        the types of goals suggested, ensuring they align with the consultation topic.
+      operationId: getConsultationGoalSuggestions
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: consultationID
+          in: path
+          required: true
+          description: Consultation ID (UUID)
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        description: Optional request body to specify maximum number of suggestions
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                max_suggestions:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+                  description: Maximum number of suggestions to generate (1-10)
+                  example: 3
+            example:
+              max_suggestions: 5
+      responses:
+        "200":
+          description: Successfully generated consultation-based goal suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ConsultationSuggestionsResponse"
+              example:
+                success: true
+                data:
+                  consultation_id: "550e8400-e29b-41d4-a716-446655440000"
+                  persona: "nutritionist"
+                  suggestions:
+                    - title: "Increase daily fiber intake"
+                      description: "Based on our discussion about digestive health, aim for 30g of fiber daily through whole grains, fruits, and vegetables"
+                      goal_type: "nutrition"
+                      target_value: 30
+                      target_unit: "grams"
+                      rationale: "Your current intake is around 15g. Doubling fiber will improve gut health and align with your wellness goals discussed in this consultation"
+                      estimated_duration: 30
+                      difficulty: 2
+                    - title: "Meal prep 4 times per week"
+                      description: "Prepare healthy meals in advance to support your nutrition goals and reduce reliance on processed foods"
+                      goal_type: "nutrition"
+                      target_value: 4
+                      target_unit: "days"
+                      rationale: "We identified time constraints as a barrier. Meal prep addresses this while ensuring you have nutritious options available"
+                      estimated_duration: 60
+                      difficulty: 3
+                    - title: "Track macronutrients daily"
+                      description: "Log your protein, carbs, and fats to understand your current patterns and make informed adjustments"
+                      goal_type: "nutrition"
+                      target_value: 7
+                      target_unit: "days per week"
+                      rationale: "Awareness is the first step. Tracking will help you identify gaps and ensure balanced nutrition"
+                      estimated_duration: 21
+                      difficulty: 2
+                  count: 3
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/goals/{id}/tips:
+    get:
+      tags:
+        - Goals AI
+      summary: Get AI goal tips
+      description: |
+        Generates 5-7 personalized, actionable tips for achieving a specific goal.
+        Tips are based on the goal details, user's current progress, and wellness context.
+      operationId: getGoalTips
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Goal ID (UUID)
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        "200":
+          description: Successfully generated goal tips
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/TipsResponse"
+              example:
+                success: true
+                data:
+                  goal_id: "550e8400-e29b-41d4-a716-446655440000"
+                  tips:
+                    - "Start with a 5-minute morning walk and add 2 minutes each week to build the habit gradually."
+                    - "Track your steps in real-time using your phone's pedometer to stay motivated throughout the day."
+                    - "Park farther away from entrances and take stairs instead of elevators for easy extra steps."
+                    - "Set hourly reminders to stand and walk for 2-3 minutes to break up sedentary time."
+                    - "Join a walking group or find a walking buddy for accountability and social motivation."
+                  count: 5
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/goals/{id}/activities:
+    post:
+      tags:
+        - Goals AI
+      summary: Log goal activity
+      description: |
+        Logs a new activity for a goal. Activities track user interactions with goals
+        for analysis and recommendations. Types include check-ins, progress updates,
+        notes, completion, abandonment, and resumption.
+      operationId: logGoalActivity
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Goal ID (UUID)
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogActivityRequest"
+            examples:
+              checkIn:
+                summary: Simple check-in
+                value:
+                  activity_type: "check_in"
+              progressUpdate:
+                summary: Progress update with delta
+                value:
+                  activity_type: "progress_update"
+                  progress_delta: 1500
+                  note: "Great walk after lunch!"
+              note:
+                summary: Activity with note
+                value:
+                  activity_type: "note"
+                  note: "Feeling more energized after consistent walking this week"
+      responses:
+        "201":
+          description: Activity successfully logged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ActivityResponse"
+              example:
+                success: true
+                data:
+                  id: "123e4567-e89b-12d3-a456-426614174000"
+                  goal_id: "550e8400-e29b-41d4-a716-446655440000"
+                  user_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  activity_type: "progress_update"
+                  note: "Great walk after lunch!"
+                  progress_delta: 1500
+                  timestamp: "2025-01-29T14:30:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    get:
+      tags:
+        - Goals AI
+      summary: Fetch goal activities
+      description: |
+        Retrieves activities for a goal with optional filtering by activity type.
+        Supports pagination with limit and offset.
+      operationId: fetchGoalActivities
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Goal ID (UUID)
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: activity_type
+          in: query
+          required: false
+          description: Filter by activity type
+          schema:
+            type: string
+            enum:
+              - check_in
+              - progress_update
+              - note
+              - completed
+              - abandoned
+              - resumed
+          example: "progress_update"
+        - name: limit
+          in: query
+          required: false
+          description: Number of activities to return (1-100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+        - name: offset
+          in: query
+          required: false
+          description: Number of activities to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      responses:
+        "200":
+          description: Successfully retrieved activities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ListActivitiesResponse"
+              example:
+                success: true
+                data:
+                  activities:
+                    - id: "123e4567-e89b-12d3-a456-426614174000"
+                      goal_id: "550e8400-e29b-41d4-a716-446655440000"
+                      user_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                      activity_type: "progress_update"
+                      note: "Great walk after lunch!"
+                      progress_delta: 1500
+                      timestamp: "2025-01-29T14:30:00Z"
+                    - id: "123e4567-e89b-12d3-a456-426614174001"
+                      goal_id: "550e8400-e29b-41d4-a716-446655440000"
+                      user_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                      activity_type: "check_in"
+                      timestamp: "2025-01-29T10:00:00Z"
+                  total: 15
+                  limit: 20
+                  offset: 0
+                  has_more: false
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for client authentication
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user authentication
+
+  schemas:
+    SuggestionDTO:
+      type: object
+      required:
+        - title
+        - description
+        - goal_type
+        - target_value
+        - target_unit
+        - rationale
+        - estimated_duration
+        - difficulty
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          description: Suggested goal title
+          example: "Walk 10,000 steps daily"
+        description:
+          type: string
+          minLength: 100
+          maxLength: 500
+          description: Detailed description of the goal (100-200 words)
+          example: "Based on your current average of 6,000 steps per day, gradually increasing to 10,000 steps is an achievable goal that will improve cardiovascular health and energy levels."
+        goal_type:
+          type: string
+          enum:
+            - weight
+            - activity
+            - nutrition
+            - custom
+          description: Type of goal
+          example: "activity"
+        target_value:
+          type: number
+          format: float
+          minimum: 0
+          description: Recommended target value
+          example: 10000
+        target_unit:
+          type: string
+          maxLength: 50
+          description: Unit for the target value
+          example: "steps"
+        rationale:
+          type: string
+          minLength: 50
+          maxLength: 300
+          description: Why this goal is suggested (50-100 words)
+          example: "Your activity data shows you're already moderately active. This goal builds on your current habits."
+        estimated_duration:
+          type: integer
+          minimum: 1
+          description: Suggested timeline in days
+          example: 60
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Challenge level (1=easy, 5=very hard)
+          example: 2
+
+    SuggestionsResponse:
+      type: object
+      required:
+        - suggestions
+        - count
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalSuggestion"
+        count:
+          type: integer
+          description: Number of suggestions returned
+          example: 3
+
+    GoalSuggestion:
+      type: object
+      required:
+        - title
+        - description
+        - goal_type
+        - target_value
+        - target_unit
+        - rationale
+        - estimated_duration
+        - difficulty
+      properties:
+        title:
+          type: string
+          description: Suggested goal title
+          maxLength: 200
+          example: "Walk 10,000 steps daily"
+        description:
+          type: string
+          description: Detailed description of the suggested goal
+          maxLength: 1000
+          example: "Based on your current average of 6,000 steps per day, gradually increasing to 10,000 steps is an achievable goal that will improve cardiovascular health and energy levels."
+        goal_type:
+          type: string
+          enum: [weight, activity, nutrition, custom]
+          description: Type of goal
+          example: "activity"
+        target_value:
+          type: number
+          format: double
+          minimum: 0
+          description: Target value for the goal
+          example: 10000
+        target_unit:
+          type: string
+          description: Unit of measurement for target value
+          maxLength: 50
+          example: "steps"
+        rationale:
+          type: string
+          description: AI's reasoning for suggesting this goal
+          maxLength: 1000
+          example: "Your activity data shows you're already moderately active. This goal builds on your current habits."
+        estimated_duration:
+          type: integer
+          minimum: 1
+          description: Estimated days to achieve this goal
+          example: 60
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Difficulty level (1=easy, 5=very hard)
+          example: 2
+
+    ConsultationSuggestionsResponse:
+      type: object
+      required:
+        - consultation_id
+        - persona
+        - suggestions
+        - count
+      properties:
+        consultation_id:
+          type: string
+          format: uuid
+          description: ID of the consultation that generated these suggestions
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        persona:
+          type: string
+          description: AI persona type from consultation (nutritionist, fitness_coach, wellness_specialist)
+          example: "nutritionist"
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalSuggestion"
+        count:
+          type: integer
+          description: Number of suggestions returned
+          example: 3
+
+    TipsResponse:
+      type: object
+      required:
+        - goal_id
+        - tips
+        - count
+      properties:
+        goal_id:
+          type: string
+          format: uuid
+          description: ID of the goal these tips are for
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        tips:
+          type: array
+          items:
+            type: string
+          minItems: 5
+          maxItems: 7
+          description: List of actionable tips (5-7 typically)
+          example:
+            - "Start with a 5-minute morning walk and add 2 minutes each week."
+            - "Track your steps in real-time using your phone's pedometer."
+        count:
+          type: integer
+          description: Number of tips returned
+          example: 5
+
+    LogActivityRequest:
+      type: object
+      required:
+        - activity_type
+      properties:
+        activity_type:
+          type: string
+          enum:
+            - check_in
+            - progress_update
+            - note
+            - completed
+            - abandoned
+            - resumed
+          description: Type of activity being logged
+          example: "progress_update"
+        note:
+          type: string
+          maxLength: 1000
+          description: Optional note (required for 'note' activity type, max 1000 chars)
+          example: "Great walk after lunch!"
+        progress_delta:
+          type: number
+          format: float
+          minimum: 0
+          description: Progress amount (required for 'progress_update' activity type)
+          example: 1500
+
+    ActivityResponse:
+      type: object
+      required:
+        - id
+        - goal_id
+        - user_id
+        - activity_type
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Activity ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        goal_id:
+          type: string
+          format: uuid
+          description: Associated goal ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_id:
+          type: string
+          format: uuid
+          description: User ID
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        activity_type:
+          type: string
+          enum:
+            - check_in
+            - progress_update
+            - note
+            - completed
+            - abandoned
+            - resumed
+          description: Type of activity
+          example: "progress_update"
+        note:
+          type: string
+          description: Activity note (encrypted at rest)
+          example: "Great walk after lunch!"
+        progress_delta:
+          type: number
+          format: float
+          description: Progress amount (if applicable)
+          example: 1500
+        timestamp:
+          type: string
+          format: date-time
+          description: When the activity occurred
+          example: "2025-01-29T14:30:00Z"
+
+    ListActivitiesResponse:
+      type: object
+      required:
+        - activities
+        - total
+        - limit
+        - offset
+        - has_more
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityResponse"
+          description: List of activities
+        total:
+          type: integer
+          description: Total number of activities for the goal
+          example: 15
+        limit:
+          type: integer
+          description: Number of activities returned
+          example: 20
+        offset:
+          type: integer
+          description: Number of activities skipped
+          example: 0
+        has_more:
+          type: boolean
+          description: Whether there are more activities to fetch
+          example: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: "UNAUTHORIZED"
+            message:
+              type: string
+              example: "Authentication required"
+
+  responses:
+    BadRequestError:
+      description: Bad request - Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "BAD_REQUEST"
+              message: "Invalid request parameters"
+
+    UnauthorizedError:
+      description: Unauthorized - Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "UNAUTHORIZED"
+              message: "Authentication required"
+
+    ForbiddenError:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "FORBIDDEN"
+              message: "You do not have permission to access this resource"
+
+    NotFoundError:
+      description: Not found - Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "NOT_FOUND"
+              message: "Goal not found"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "INTERNAL_ERROR"
+              message: "An unexpected error occurred"

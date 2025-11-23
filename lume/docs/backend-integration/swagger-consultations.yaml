@@ -1,0 +1,1311 @@
+openapi: 3.0.3
+info:
+  title: FitIQ AI Consultations API
+  description: |
+    AI-powered wellness consultation and chat API for FitIQ platform.
+
+    ## Overview
+    The Consultations API enables users to have personalized conversations with AI wellness coaches.
+    Each consultation uses a specific persona (nutritionist, fitness coach, wellness specialist, or general wellness)
+    and can be contextualized to specific goals, insights, mood entries, or journal entries.
+
+    ## Features
+    - **Multi-Persona Support**: Choose from specialized AI coaches or general wellness advisor
+    - **Context-Aware Conversations**: Link consultations to goals, insights, mood, or journal entries
+    - **Quick Actions**: Predefined prompts for easy conversation starters
+    - **Real-Time Messaging**: WebSocket support for live chat experience
+    - **AI Template Creation**: AI can generate wellness, meal, and workout templates during conversations
+    - **Message History**: Full conversation history with timestamps and metadata
+
+    ## Personas
+    - **Nutritionist**: Expert in nutrition, meal planning, and dietary advice
+    - **Fitness Coach**: Specializes in workouts, training programs, and exercise technique
+    - **Wellness Specialist**: Focuses on holistic wellness, stress management, and lifestyle
+    - **General Wellness**: Holistic advisor covering all aspects of health and wellness
+
+    ## Context Types
+    - **General**: Open-ended wellness conversations
+    - **Goal**: Focused on a specific user goal
+    - **Insight**: Discussion about an AI-generated insight
+    - **Mood**: Related to a mood entry or emotional state
+    - **Journal**: Connected to a journal entry or reflection
+
+    ## Authentication
+    All endpoints require both:
+    - **API Key** (via `X-API-Key` header)
+    - **JWT Token** (via `Authorization: Bearer` header)
+
+    ## WebSocket Connection
+    Real-time messaging uses WebSocket at `/api/v1/consultations/{id}/ws`
+    with JWT authentication via query parameter.
+
+    ## Rate Limiting
+    Standard rate limits apply. See main API documentation.
+
+  version: 0.34.0
+  contact:
+    name: FitIQ API Support
+    email: api@fitiq.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.fitiq.com
+    description: Production server
+  - url: https://staging-api.fitiq.com
+    description: Staging server
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - ApiKeyAuth: []
+    BearerAuth: []
+
+tags:
+  - name: Consultations
+    description: AI coaching consultation and chat operations
+  - name: Quick Actions
+    description: Predefined prompts for starting conversations
+
+paths:
+  /api/v1/consultations/quick-actions:
+    get:
+      summary: Get quick action prompts for consultations
+      description: |
+        Retrieve a list of predefined quick action prompts that users can select to start or continue a conversation.
+        Quick actions provide convenient shortcuts for common wellness queries and tasks.
+
+        **Filtering Options:**
+        - `context_type`: Filter by context (general, goal, insight, mood, journal)
+        - `persona`: Filter by AI persona (nutritionist, fitness_coach, wellness_specialist, general_wellness)
+
+        If no filters are provided, returns all available quick actions.
+
+        **Available Quick Actions:**
+        - Suggest a goal
+        - Check my progress
+        - Boost my motivation
+        - Analyze my patterns
+        - Plan nutrition
+        - Design workout
+        - Improve sleep
+        - Manage stress
+        - Review goal progress
+        - Troubleshoot goal issues
+        - And more...
+      tags:
+        - Quick Actions
+      operationId: getQuickActions
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: context_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [general, goal, insight, mood, journal]
+          description: Filter by context type
+          example: goal
+        - name: persona
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              [
+                nutritionist,
+                fitness_coach,
+                wellness_specialist,
+                general_wellness,
+              ]
+          description: Filter by persona
+          example: general_wellness
+      responses:
+        "200":
+          description: Quick actions retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/QuickActionsResponse"
+              examples:
+                all_actions:
+                  summary: All quick actions
+                  value:
+                    success: true
+                    data:
+                      actions:
+                        - id: "suggest-goal"
+                          title: "Suggest a goal"
+                          prompt: "Based on my recent activity and wellness data, suggest a specific, achievable goal I should work on."
+                          icon: "target"
+                          context_type: "general"
+                          persona: "general_wellness"
+                        - id: "check-progress"
+                          title: "Check my progress"
+                          prompt: "Review my recent wellness progress across all areas (fitness, nutrition, mood, sleep) and provide insights."
+                          icon: "chart-line"
+                          context_type: "general"
+                          persona: "general_wellness"
+                        - id: "boost-motivation"
+                          title: "Boost my motivation"
+                          prompt: "I need some motivation and encouragement. Based on my journey so far, help me stay focused and positive."
+                          icon: "heart"
+                          context_type: "general"
+                          persona: "general_wellness"
+                filtered_by_context:
+                  summary: Filtered by goal context
+                  value:
+                    success: true
+                    data:
+                      actions:
+                        - id: "suggest-goal"
+                          title: "Suggest a goal"
+                          prompt: "Based on my recent activity and wellness data, suggest a specific, achievable goal I should work on."
+                          icon: "target"
+                          context_type: "general"
+                          persona: "general_wellness"
+                        - id: "troubleshoot-goal"
+                          title: "Goal struggling"
+                          prompt: "I'm struggling with one of my goals. Help me understand why and create a strategy to get back on track."
+                          icon: "help-circle"
+                          context_type: "goal"
+                          persona: "general_wellness"
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "Invalid context_type parameter"
+        "401":
+          description: Unauthorized - Invalid or missing API key or JWT token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "Unauthorized"
+
+  /api/v1/consultations:
+    post:
+      summary: Create a new AI coaching consultation
+      description: |
+        Start a new consultation with an AI coach persona.
+
+        **Personas:**
+        - `nutritionist`: Expert in nutrition and meal planning
+        - `fitness_coach`: Specializes in workouts and training
+        - `wellness_specialist`: Focuses on holistic wellness
+        - `general_wellness`: Holistic advisor for all wellness aspects
+
+        **Context Options:**
+        The consultation can be linked to specific context for focused assistance:
+        - Link to a goal for goal-specific coaching
+        - Link to an insight for deeper discussion
+        - Link to a mood entry for emotional support
+        - Link to a journal entry for reflection guidance
+
+        **Quick Actions:**
+        Pass a `quick_action` ID to start with a predefined prompt.
+
+        The AI coach can access your profile data, goals, food logs, and workouts to provide personalized advice.
+        Additionally, the AI can create actionable templates for you to review and approve:
+        - **Wellness Templates**: Sleep optimization plans, stress management routines, recovery programs
+        - **Meal Templates**: Personalized meal suggestions with nutrition details for quick logging
+        - **Workout Templates**: Exercise routines with sets, reps, and technique guidance
+
+        All AI-created templates are saved for your review and can be approved/used when ready.
+      tags:
+        - Consultations
+      operationId: createConsultation
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConsultationRequest"
+            examples:
+              general_wellness:
+                summary: General wellness consultation
+                value:
+                  persona: "general_wellness"
+                  initial_message: "I want to improve my overall wellness. Where should I start?"
+              goal_context:
+                summary: Consultation with goal context
+                value:
+                  persona: "general_wellness"
+                  context_type: "goal"
+                  context_id: "goal-123e4567-e89b-12d3-a456-426614174000"
+                  initial_message: "Help me with this goal"
+              quick_action:
+                summary: Consultation from quick action
+                value:
+                  persona: "general_wellness"
+                  quick_action: "suggest-goal"
+              nutritionist:
+                summary: Nutritionist consultation
+                value:
+                  persona: "nutritionist"
+                  initial_message: "I need help planning my meals for the week"
+      responses:
+        "201":
+          description: Consultation created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CreateConsultationResponse"
+              example:
+                success: true
+                data:
+                  consultation:
+                    id: "consult-123e4567-e89b-12d3-a456-426614174000"
+                    user_id: "user-123e4567-e89b-12d3-a456-426614174000"
+                    persona: "general_wellness"
+                    status: "active"
+                    goal_id: null
+                    context_type: "general"
+                    context_id: null
+                    quick_action: null
+                    started_at: "2025-01-30T14:30:00Z"
+                    completed_at: null
+                    last_message_at: "2025-01-30T14:30:00Z"
+                    message_count: 1
+                    created_at: "2025-01-30T14:30:00Z"
+                    updated_at: "2025-01-30T14:30:00Z"
+                  greeting_message:
+                    id: "msg-123e4567-e89b-12d3-a456-426614174000"
+                    consultation_id: "consult-123e4567-e89b-12d3-a456-426614174000"
+                    role: "assistant"
+                    content: "Hello! I'm your wellness advisor. How can I help you today?"
+                    tokens_used: 25
+                    processing_time_ms: 450
+                    created_at: "2025-01-30T14:30:00Z"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "Invalid persona"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Conflicting consultation (DEPRECATED - now allows multiple consultations per persona)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConflictingConsultationErrorResponse"
+              examples:
+                with_goal:
+                  summary: Conflict with existing consultation linked to goal
+                  value:
+                    success: false
+                    error:
+                      code: "CONSULTATION_EXISTS"
+                      message: "already have an active consultation for this persona"
+                      details:
+                        existing_consultation_id: "550e8400-e29b-41d4-a716-446655440000"
+                        persona: "nutritionist"
+                        status: "active"
+                        goal_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                        can_continue: true
+                without_goal:
+                  summary: Conflict with existing consultation without goal
+                  value:
+                    success: false
+                    error:
+                      code: "CONSULTATION_EXISTS"
+                      message: "already have an active consultation for this persona"
+                      details:
+                        existing_consultation_id: "550e8400-e29b-41d4-a716-446655440000"
+                        persona: "general_wellness"
+                        status: "active"
+                        can_continue: true
+        "429":
+          description: Too many active consultations (maximum 10 active consultations allowed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "too many active consultations: please complete some before creating new ones"
+
+    get:
+      summary: List user's consultations
+      description: |
+        Retrieve all consultations for the authenticated user with optional filtering.
+
+        **Default Behavior:**
+        - Returns active consultations only (when no status filter is provided)
+        - Sorted by started_at (most recent first)
+        - Default pagination: 50 results per page, max 100
+
+        **Filtering Options:**
+        - `status`: Filter by consultation status (active, completed, abandoned, pending_approval)
+        - `limit`: Number of results to return (default: 50, max: 100)
+        - `offset`: Pagination offset (default: 0)
+
+        **Use Cases:**
+        - App launch: Retrieve active consultations
+        - History view: Filter by completed or all statuses
+        - Cross-device sync: Get current consultation state
+      tags:
+        - Consultations
+      operationId: listConsultations
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, active, completed, abandoned, archived]
+          description: Filter by status
+        - name: persona
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              [
+                nutritionist,
+                fitness_coach,
+                wellness_specialist,
+                general_wellness,
+              ]
+          description: Filter by persona
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+      responses:
+        "200":
+          description: Consultations retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ConsultationsListResponse"
+              examples:
+                active_consultations:
+                  summary: Active consultations (default)
+                  value:
+                    success: true
+                    data:
+                      consultations:
+                        - id: "550e8400-e29b-41d4-a716-446655440000"
+                          user_id: "user-123e4567-e89b-12d3-a456-426614174000"
+                          persona: "nutritionist"
+                          status: "active"
+                          goal_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                          started_at: "2025-01-29T10:00:00Z"
+                          last_message_at: "2025-01-29T14:30:00Z"
+                          message_count: 12
+                          created_at: "2025-01-29T10:00:00Z"
+                          updated_at: "2025-01-29T14:30:00Z"
+                        - id: "660e8400-e29b-41d4-a716-446655440001"
+                          user_id: "user-123e4567-e89b-12d3-a456-426614174000"
+                          persona: "fitness_coach"
+                          status: "active"
+                          started_at: "2025-01-28T08:00:00Z"
+                          last_message_at: "2025-01-29T09:15:00Z"
+                          message_count: 8
+                          created_at: "2025-01-28T08:00:00Z"
+                          updated_at: "2025-01-29T09:15:00Z"
+                      total_count: 2
+                      limit: 50
+                      offset: 0
+                empty_result:
+                  summary: No consultations found
+                  value:
+                    success: true
+                    data:
+                      consultations: []
+                      total_count: 0
+                      limit: 50
+                      offset: 0
+                completed_consultations:
+                  summary: Completed consultations
+                  value:
+                    success: true
+                    data:
+                      consultations:
+                        - id: "770e8400-e29b-41d4-a716-446655440002"
+                          user_id: "user-123e4567-e89b-12d3-a456-426614174000"
+                          persona: "nutritionist"
+                          status: "completed"
+                          goal_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                          started_at: "2025-01-20T10:00:00Z"
+                          completed_at: "2025-01-25T16:00:00Z"
+                          last_message_at: "2025-01-25T16:00:00Z"
+                          message_count: 45
+                          created_at: "2025-01-20T10:00:00Z"
+                          updated_at: "2025-01-25T16:00:00Z"
+                      total_count: 1
+                      limit: 50
+                      offset: 0
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "invalid status parameter"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/consultations/{id}:
+    get:
+      summary: Get consultation details
+      description: |
+        Retrieve details of a specific consultation including message count.
+
+        Use this endpoint to get consultation metadata without fetching all messages.
+        To get messages, use `GET /api/v1/consultations/{id}/messages`.
+      tags:
+        - Consultations
+      operationId: getConsultation
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+          example: "consult-123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        "200":
+          description: Consultation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ConsultationResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - User does not own this consultation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Delete a consultation
+      description: |
+        Permanently delete a consultation and all associated messages.
+
+        **Important Notes:**
+        - This action is irreversible
+        - All messages in the consultation will be cascade deleted
+        - Only the consultation owner can delete it
+        - Works for consultations in any status (active, completed, etc.)
+
+        **Use Cases:**
+        - User wants to remove a consultation they no longer need
+        - User wants to start fresh with a new consultation
+        - Cleanup of test/experimental consultations
+      tags:
+        - Consultations
+      operationId: deleteConsultation
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID to delete
+          example: "consult-123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        "204":
+          description: Consultation deleted successfully (no content returned)
+        "400":
+          description: Invalid request - Missing or invalid consultation ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "consultation ID is required"
+        "401":
+          description: Unauthorized - Invalid or missing authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "unauthorized"
+        "403":
+          description: Forbidden - User does not own this consultation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "you do not have permission to delete this consultation"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "consultation not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "failed to delete consultation"
+
+  /api/v1/consultations/{id}/messages:
+    get:
+      summary: Get consultation messages
+      description: |
+        Retrieve all messages in a consultation conversation.
+
+        Messages are returned in chronological order (oldest first) to maintain conversation flow.
+        Includes user messages, assistant responses, system messages, and function calls.
+      tags:
+        - Consultations
+      operationId: getConsultationMessages
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+      responses:
+        "200":
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MessagesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      summary: Send a message in consultation
+      description: |
+        Send a user message in an active consultation.
+
+        The AI will process the message asynchronously and respond via WebSocket.
+        Connect to the WebSocket endpoint to receive the AI response in real-time.
+
+        **Note:** This endpoint only accepts the message. The AI response is delivered
+        via WebSocket at `/api/v1/consultations/{id}/ws`.
+      tags:
+        - Consultations
+      operationId: sendMessage
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "202":
+          description: Message accepted and processing
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden or consultation not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/consultations/{id}/complete:
+    post:
+      summary: Complete a consultation
+      description: |
+        Mark a consultation as completed.
+
+        Only active consultations can be completed. Once completed, no more messages can be sent.
+        The consultation can be archived later for cleanup.
+      tags:
+        - Consultations
+      operationId: completeConsultation
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+      responses:
+        "200":
+          description: Consultation completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ConsultationResponse"
+        "400":
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/consultations/{id}/ws:
+    get:
+      summary: WebSocket connection for real-time messaging
+      description: |
+        Establish a WebSocket connection for real-time AI consultation messaging.
+
+        **Authentication:**
+        Pass JWT token as query parameter: `?token=<jwt_token>`
+
+        **Message Types:**
+        - `connected`: Connection established successfully
+        - `message`: AI response message
+        - `error`: Error occurred
+        - `pong`: Response to ping (keep-alive)
+
+        **Client Actions:**
+        - Send `{"type": "ping"}` periodically to keep connection alive
+        - Listen for message events to receive AI responses
+
+        **Connection Lifetime:**
+        - Connection remains open until consultation is completed or client disconnects
+        - Automatic reconnection recommended on disconnect
+
+        **Example Usage:**
+        ```javascript
+        const ws = new WebSocket('wss://api.fitiq.com/api/v1/consultations/123/ws?token=YOUR_JWT');
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'message') {
+            console.log('AI:', data.content);
+          }
+        };
+        ```
+      tags:
+        - Consultations
+      operationId: consultationWebSocket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: JWT authentication token
+      responses:
+        "101":
+          description: Switching Protocols - WebSocket connection established
+        "400":
+          description: Bad Request - Invalid consultation ID or missing token
+        "401":
+          description: Unauthorized - Invalid or expired token
+        "403":
+          description: Forbidden - User does not own this consultation
+        "404":
+          description: Not Found - Consultation does not exist
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for client identification
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user authentication
+
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the request was successful
+        error:
+          type: string
+          nullable: true
+          description: Error message if success is false
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+
+    QuickAction:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the quick action
+          example: "suggest-goal"
+        title:
+          type: string
+          description: Display title for the quick action
+          example: "Suggest a goal"
+        prompt:
+          type: string
+          description: The prompt text that will be sent when this action is selected
+          example: "Based on my recent activity and wellness data, suggest a specific, achievable goal I should work on."
+        icon:
+          type: string
+          description: Icon identifier for UI display
+          example: "target"
+        context_type:
+          type: string
+          enum: [general, goal, insight, mood, journal]
+          description: Context type this action is designed for
+          example: "general"
+        persona:
+          type: string
+          enum:
+            [nutritionist, fitness_coach, wellness_specialist, general_wellness]
+          description: Persona this action is designed for
+          example: "general_wellness"
+
+    QuickActionsResponse:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuickAction"
+          description: List of available quick actions
+
+    CreateConsultationRequest:
+      type: object
+      required:
+        - persona
+      properties:
+        persona:
+          type: string
+          enum:
+            [nutritionist, fitness_coach, wellness_specialist, general_wellness]
+          description: AI coach persona type
+          example: "general_wellness"
+        goal_id:
+          type: string
+          format: uuid
+          description: Optional goal ID to link with consultation
+          nullable: true
+          example: null
+        initial_message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Optional initial message from user
+          nullable: true
+          example: "I want to improve my overall wellness. Where should I start?"
+        context_type:
+          type: string
+          enum: [general, goal, insight, mood, journal]
+          description: Optional context type for the consultation
+          nullable: true
+          example: "general"
+        context_id:
+          type: string
+          description: Optional context ID (e.g., goal_id, insight_id)
+          nullable: true
+          example: null
+        quick_action:
+          type: string
+          description: Optional quick action ID that initiated this consultation
+          nullable: true
+          example: null
+
+    CreateConsultationResponse:
+      type: object
+      properties:
+        consultation:
+          $ref: "#/components/schemas/ConsultationResponse"
+        greeting_message:
+          $ref: "#/components/schemas/MessageResponse"
+          nullable: true
+          description: AI greeting message if no initial message provided
+        needs_survey:
+          type: boolean
+          description: Whether user needs to complete wellness survey (deprecated)
+          example: false
+
+    ConsultationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "consult-123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          format: uuid
+          example: "user-123e4567-e89b-12d3-a456-426614174000"
+        persona:
+          type: string
+          enum:
+            [nutritionist, fitness_coach, wellness_specialist, general_wellness]
+          example: "general_wellness"
+        status:
+          type: string
+          enum: [pending, active, completed, abandoned, archived]
+          example: "active"
+        goal_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: null
+        started_at:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:00Z"
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        last_message_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-01-30T14:30:00Z"
+        message_count:
+          type: integer
+          description: Total number of messages in consultation
+          example: 5
+        context_type:
+          type: string
+          enum: [general, goal, insight, mood, journal]
+          nullable: true
+          description: Context type for the consultation
+          example: "general"
+        context_id:
+          type: string
+          nullable: true
+          description: Context ID (e.g., goal_id, insight_id)
+          example: null
+        quick_action:
+          type: string
+          nullable: true
+          description: Quick action ID that initiated this consultation
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:00Z"
+        has_context_for_goal_suggestions:
+          type: boolean
+          description: Indicates whether the AI has sufficient user context to provide meaningful goal suggestions
+          example: true
+
+    ConsultationsListResponse:
+      type: object
+      properties:
+        consultations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsultationResponse"
+        total_count:
+          type: integer
+          description: Total number of consultations matching filters
+          example: 42
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+
+    SendMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Message content from user
+          example: "Can you help me create a meal plan for this week?"
+
+    MessageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "msg-123e4567-e89b-12d3-a456-426614174000"
+        consultation_id:
+          type: string
+          format: uuid
+          example: "consult-123e4567-e89b-12d3-a456-426614174000"
+        role:
+          type: string
+          enum: [user, assistant, system, function]
+          description: Message role
+          example: "assistant"
+        content:
+          type: string
+          description: Message content
+          example: "I'd be happy to help you create a meal plan. Let me ask a few questions first..."
+        function_name:
+          type: string
+          nullable: true
+          description: Function name (for function role)
+          example: null
+        function_args:
+          type: string
+          nullable: true
+          description: Function arguments JSON (for function role)
+          example: null
+        tokens_used:
+          type: integer
+          nullable: true
+          description: Tokens consumed (for assistant messages)
+          example: 150
+        processing_time_ms:
+          type: integer
+          nullable: true
+          description: Processing time in milliseconds (for assistant messages)
+          example: 1200
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:15Z"
+
+    MessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageResponse"
+          description: List of messages in chronological order
+        total_count:
+          type: integer
+          description: Total number of messages
+          example: 10
+
+    WSConnectedMessage:
+      type: object
+      description: WebSocket message sent when connection is established
+      required:
+        - type
+        - consultation_id
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [connected]
+          description: Message type
+          example: "connected"
+        consultation_id:
+          type: string
+          format: uuid
+          description: The consultation ID for this connection
+          example: "consult-123e4567-e89b-12d3-a456-426614174000"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:00Z"
+
+    WSMessageMessage:
+      type: object
+      description: WebSocket message containing AI response
+      required:
+        - type
+        - message
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [message]
+          description: Message type
+          example: "message"
+        message:
+          $ref: "#/components/schemas/MessageResponse"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:15Z"
+
+    ConflictingConsultationErrorResponse:
+      type: object
+      description: Enhanced error response for conflicting consultations with recovery details
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code for programmatic handling
+              enum: ["CONSULTATION_EXISTS"]
+              example: "CONSULTATION_EXISTS"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "already have an active consultation for this persona"
+            details:
+              type: object
+              description: Additional details about the conflicting consultation
+              required:
+                - existing_consultation_id
+                - persona
+                - status
+                - can_continue
+              properties:
+                existing_consultation_id:
+                  type: string
+                  format: uuid
+                  description: ID of the existing conflicting consultation
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                persona:
+                  type: string
+                  enum: ["nutritionist", "fitness_coach", "general_wellness"]
+                  description: Persona of the conflicting consultation
+                  example: "nutritionist"
+                status:
+                  type: string
+                  enum: ["active", "pending_approval"]
+                  description: Status of the conflicting consultation
+                  example: "active"
+                goal_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Goal ID linked to the consultation (if any)
+                  example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                can_continue:
+                  type: boolean
+                  description: Whether the user can continue with the existing consultation
+                  example: true
+
+    WSErrorMessage:
+      type: object
+      description: WebSocket error message
+      required:
+        - type
+        - error
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [error]
+          description: Message type
+          example: "error"
+        error:
+          type: string
+          description: Error message
+          example: "Consultation is not active"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:00Z"
+        code:
+          type: string
+          nullable: true
+          description: Error code for programmatic handling
+          example: "CONSULTATION_NOT_ACTIVE"
+
+    WSPongMessage:
+      type: object
+      description: WebSocket pong response to keep-alive ping
+      required:
+        - type
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [pong]
+          description: Message type
+          example: "pong"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-30T14:30:00Z"

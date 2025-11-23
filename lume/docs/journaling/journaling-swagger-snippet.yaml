@@ -1,0 +1,847 @@
+# Journaling API - OpenAPI 3.0.3 Snippet
+# This snippet can be integrated into swagger-subset.yaml or swagger.yaml
+#
+# Add to tags section:
+tags:
+  - name: Journal
+    description: Journaling and reflection
+
+# Add to paths section:
+paths:
+  /api/v1/journal:
+    post:
+      summary: Create journal entry
+      description: |
+        Create a new journal entry with rich content, tags, and optional attachments.
+        
+        **Features:**
+        - Up to 10,000 characters (vs 500 in mood notes)
+        - Markdown support for rich formatting
+        - Multiple entry types (freeform, gratitude, goal_review, workout, meal, prompt)
+        - Tagging system for organization
+        - Link to mood entries, goals, and workouts
+        - Photo and link attachments
+        - Privacy levels (private, shared, public)
+        
+        **Use Cases:**
+        - Daily reflection and gratitude practice
+        - Workout and meal reflections
+        - Goal progress reviews
+        - Guided prompt responses
+        - Personal growth tracking
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalEntryRequest"
+            examples:
+              freeform:
+                summary: Free-form journaling
+                value:
+                  title: "Reflections on Today"
+                  content: "Today was a day of growth. I learned that pushing myself outside my comfort zone leads to the most meaningful experiences..."
+                  content_format: "markdown"
+                  entry_type: "freeform"
+                  tags: ["reflection", "personal-growth"]
+                  privacy_level: "private"
+                  logged_at: "2024-01-15T20:00:00Z"
+              gratitude:
+                summary: Gratitude practice
+                value:
+                  title: "Daily Gratitude - January 15"
+                  content: |
+                    ## Three Things I'm Grateful For Today
+                    
+                    1. **My health** - I was able to complete my workout and feel strong
+                    2. **My support system** - My family checked in on me today
+                    3. **This beautiful weather** - The sunshine lifted my mood
+                  content_format: "markdown"
+                  entry_type: "gratitude"
+                  tags: ["gratitude", "daily-practice"]
+                  privacy_level: "private"
+                  logged_at: "2024-01-15T20:00:00Z"
+              workout_reflection:
+                summary: Workout reflection with mood and photo
+                value:
+                  title: "New PR on Squats!"
+                  content: |
+                    Hit a new personal record on squats today - 225 lbs for 5 reps!
+                    
+                    **What went well:**
+                    - Form felt solid throughout
+                    - Energy levels were high
+                    - Mental focus was on point
+                    
+                    **What to improve:**
+                    - Need to work on depth consistency
+                    - Should add more mobility work
+                    
+                    Feeling incredibly proud and motivated to keep pushing!
+                  content_format: "markdown"
+                  entry_type: "workout"
+                  tags: ["workout", "progress", "strength-training", "personal-record"]
+                  linked_mood_id: "mood-550e8400-e29b-41d4-a716-446655440000"
+                  attachments:
+                    - type: "photo"
+                      url: "https://cdn.fitiq.com/photos/pr-celebration-12345.jpg"
+                      name: "PR celebration photo"
+                  privacy_level: "private"
+                  logged_at: "2024-01-15T18:30:00Z"
+      responses:
+        "201":
+          description: Journal entry created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/JournalEntryResponse"
+        "400":
+          description: Bad Request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: List journal entries
+      description: |
+        Retrieve journal entries with filtering, sorting, and pagination.
+        Defaults to last 30 days if no dates specified.
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD), defaults to 30 days ago
+          example: "2024-01-01"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD), defaults to today
+          example: "2024-01-31"
+        - name: entry_type
+          in: query
+          schema:
+            type: string
+            enum: [freeform, gratitude, goal_review, workout, meal, prompt]
+          description: Filter by entry type
+        - name: tags
+          in: query
+          schema:
+            type: string
+          description: Comma-separated tags to filter by
+          example: "workout,progress"
+        - name: favorites_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Return only favorite entries
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+          description: Number of entries to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of entries to skip for pagination
+      responses:
+        "200":
+          description: Journal entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/JournalEntriesListResponse"
+        "400":
+          description: Bad Request - Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/journal/search:
+    get:
+      summary: Full-text search journal entries
+      description: |
+        Search across journal entry titles, content, and tags using full-text search.
+        
+        **Search Tips:**
+        - Search is case-insensitive
+        - Multiple words are AND'd together
+        - Use quotes for exact phrases: "personal growth"
+        - Results ranked by relevance
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+          example: "workout motivation"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+          description: Number of results to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/JournalSearchResponse"
+        "400":
+          description: Bad Request - Invalid search query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/journal/{id}:
+    get:
+      summary: Get journal entry by ID
+      description: Retrieve a specific journal entry
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Journal entry ID
+      responses:
+        "200":
+          description: Journal entry retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/JournalEntryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Journal entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: Update journal entry
+      description: Update an existing journal entry
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Journal entry ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalEntryRequest"
+      responses:
+        "200":
+          description: Journal entry updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/JournalEntryResponse"
+        "400":
+          description: Bad Request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Journal entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Delete journal entry
+      description: Permanently delete a journal entry
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Journal entry ID
+      responses:
+        "204":
+          description: Journal entry deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Journal entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/journal/{id}/favorite:
+    post:
+      summary: Toggle favorite status
+      description: Mark or unmark a journal entry as favorite
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Journal entry ID
+      responses:
+        "200":
+          description: Favorite status toggled successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_favorite:
+                            type: boolean
+                            description: New favorite status
+                        required: [is_favorite]
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Journal entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/journal/prompts:
+    get:
+      summary: Get journal prompts
+      description: |
+        Retrieve guided journal prompts to inspire reflection.
+        
+        **Prompt Categories:**
+        - **gratitude**: Focus on appreciation and thankfulness
+        - **reflection**: Review experiences and learnings
+        - **goals**: Review progress and set intentions
+        - **wellness**: Mental and physical health check-ins
+        - **creativity**: Creative expression and exploration
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [gratitude, reflection, goals, wellness, creativity]
+          description: Filter prompts by category
+      responses:
+        "200":
+          description: Prompts retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          prompts:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/JournalPrompt"
+                        required: [prompts]
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/journal/statistics:
+    get:
+      summary: Get journal statistics
+      description: |
+        Get comprehensive journaling statistics and insights for a time period.
+        
+        **Includes:**
+        - Total entry count
+        - Entries by type breakdown
+        - Most used tags
+        - Current writing streak
+        - Average entry length
+        - Favorite count
+      tags: [Journal]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD)
+          example: "2024-01-01"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD)
+          example: "2024-01-31"
+      responses:
+        "200":
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/JournalStatistics"
+        "400":
+          description: Bad Request - Invalid date format or range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+# Add to components/schemas section:
+components:
+  schemas:
+    JournalEntryRequest:
+      type: object
+      required: [content, logged_at]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          description: Entry title (optional, recommended for organization)
+          example: "Reflections on Today"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: Entry content (required, up to 10,000 characters)
+          example: "Today was a transformative day..."
+        content_format:
+          type: string
+          enum: [plain, markdown]
+          default: plain
+          description: Content format - use markdown for rich formatting
+          example: "markdown"
+        entry_type:
+          type: string
+          enum: [freeform, gratitude, goal_review, workout, meal, prompt]
+          default: freeform
+          description: Entry type/category for organization
+          example: "freeform"
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+          description: Tags for categorization and search (max 20)
+          example: ["reflection", "personal-growth", "wellness"]
+        privacy_level:
+          type: string
+          enum: [private, shared, public]
+          default: private
+          description: Privacy level (private by default)
+          example: "private"
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [photo, link]
+                description: Attachment type
+              url:
+                type: string
+                format: uri
+                description: URL to attached resource
+              name:
+                type: string
+                description: Attachment name/description
+            required: [type, url]
+          maxItems: 10
+          description: Photos or links attached to entry (max 10)
+        prompt_id:
+          type: string
+          format: uuid
+          description: Prompt ID if responding to a guided prompt
+          nullable: true
+        linked_mood_id:
+          type: string
+          format: uuid
+          description: Link to associated mood entry for context
+          nullable: true
+        linked_goal_id:
+          type: string
+          format: uuid
+          description: Link to associated goal for progress tracking
+          nullable: true
+        logged_at:
+          type: string
+          format: date-time
+          description: When entry was written (RFC3339 format)
+          example: "2024-01-15T20:00:00Z"
+
+    JournalEntryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Journal entry ID
+        user_id:
+          type: string
+          format: uuid
+          description: User ID
+        title:
+          type: string
+          description: Entry title
+        content:
+          type: string
+          description: Entry content
+        content_format:
+          type: string
+          enum: [plain, markdown]
+          description: Content format
+        entry_type:
+          type: string
+          enum: [freeform, gratitude, goal_review, workout, meal, prompt]
+          description: Entry type
+        tags:
+          type: array
+          items:
+            type: string
+          description: Entry tags
+        privacy_level:
+          type: string
+          enum: [private, shared, public]
+          description: Privacy level
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              url:
+                type: string
+              name:
+                type: string
+          description: Attached files/links
+        prompt_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Prompt ID if responding to prompt
+        linked_mood_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Linked mood entry ID
+        linked_goal_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Linked goal ID
+        is_favorite:
+          type: boolean
+          description: Whether entry is marked as favorite
+        logged_at:
+          type: string
+          format: date-time
+          description: When entry was written
+        created_at:
+          type: string
+          format: date-time
+          description: Entry creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+      required: [id, user_id, content, content_format, entry_type, tags, privacy_level, is_favorite, logged_at, created_at, updated_at]
+
+    JournalEntriesListResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalEntryResponse"
+          description: List of journal entries
+        total:
+          type: integer
+          description: Total number of entries matching query
+        limit:
+          type: integer
+          description: Number of results per page
+        offset:
+          type: integer
+          description: Number of items skipped
+        has_more:
+          type: boolean
+          description: Whether there are more results to fetch
+      required: [entries, total, limit, offset, has_more]
+
+    JournalSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/JournalEntryResponse"
+              - type: object
+                properties:
+                  relevance_score:
+                    type: number
+                    format: double
+                    description: Search relevance score (0.0-1.0)
+                    example: 0.87
+        total:
+          type: integer
+          description: Total number of search results
+        limit:
+          type: integer
+          description: Number of results per page
+        offset:
+          type: integer
+          description: Pagination offset
+      required: [results, total, limit, offset]
+
+    JournalPrompt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Prompt ID
+        category:
+          type: string
+          enum: [gratitude, reflection, goals, wellness, creativity]
+          description: Prompt category
+        prompt_text:
+          type: string
+          description: The prompt question/statement
+          example: "What are three things you're grateful for today?"
+      required: [id, category, prompt_text]
+
+    JournalStatistics:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+              description: Start date
+            to:
+              type: string
+              format: date
+              description: End date
+            total_days:
+              type: integer
+              description: Total days in period
+          required: [from, to, total_days]
+        summary:
+          type: object
+          properties:
+            total_entries:
+              type: integer
+              description: Total number of entries in period
+            entries_by_type:
+              type: object
+              additionalProperties:
+                type: integer
+              description: Count of entries by type
+              example:
+                freeform: 15
+                gratitude: 10
+                workout: 5
+            most_used_tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  tag:
+                    type: string
+                  count:
+                    type: integer
+                required: [tag, count]
+              description: Most frequently used tags
+            writing_streak:
+              type: integer
+              description: Current consecutive days with entries
+            average_entry_length:
+              type: number
+              format: double
+              description: Average content length in characters
+            favorite_count:
+              type: integer
+              description: Number of favorite entries
+          required: [total_entries, entries_by_type, most_used_tags, writing_streak, average_entry_length, favorite_count]
+      required: [period, summary]

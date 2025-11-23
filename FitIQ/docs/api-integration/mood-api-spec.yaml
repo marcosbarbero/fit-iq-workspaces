@@ -1,0 +1,1032 @@
+# Mood API Specification for FitIQ Backend
+# Version: 1.0.0
+# Last Updated: 2025-01-27
+#
+# This specification defines the /api/v1/mood endpoints for HKStateOfMind integration.
+# Designed to work with iOS 18+ HKStateOfMind API while maintaining backward compatibility.
+
+openapi: 3.0.3
+info:
+  title: FitIQ Mood API
+  version: 1.0.0
+  description: |
+    Mood tracking API endpoints supporting HKStateOfMind (iOS 18+) integration.
+
+    **Key Features:**
+    - Valence-based mood tracking (-1.0 to +1.0 pleasantness scale)
+    - Categorical labels (e.g., "happy", "stressed", "anxious")
+    - Contextual associations (e.g., "work", "family", "exercise")
+    - HealthKit deduplication via source_id
+    - Manual entry support
+    - Daily aggregates and trends
+    - Backward compatibility with legacy 1-10 mood score system
+
+paths:
+  /api/v1/mood:
+    post:
+      summary: Log a mood entry with valence, labels, and associations
+      description: |
+        Create a new mood entry supporting HKStateOfMind data structure.
+
+        **HKStateOfMind Mapping:**
+        - `valence`: Maps directly to HKStateOfMind.valence (-1.0 to +1.0)
+        - `labels`: Maps to HKStateOfMind.labels array (descriptive mood labels)
+        - `associations`: Maps to HKStateOfMind.associations array (contextual triggers)
+
+        **Idempotent Behavior:**
+        If an entry with the same `source_id` already exists for the user,
+        the API returns the existing entry with 200 OK instead of creating a duplicate.
+        This prevents duplicate imports from HealthKit.
+        Manual entries without `source_id` are not deduplicated.
+
+        **Backward Compatibility:**
+        Legacy clients can send `mood_score` (1-10) which will be converted to valence internally.
+        Conversion formula: valence = (mood_score - 5.5) / 4.5
+
+        **Validation:**
+        - At least one of `valence`, `mood_score`, or `labels` must be provided
+        - If `valence` is provided, it must be between -1.0 and +1.0
+        - `labels` array must contain at least 1 item if provided
+        - `logged_at` defaults to current timestamp if not provided
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valence:
+                  type: number
+                  format: float
+                  minimum: -1.0
+                  maximum: 1.0
+                  description: |
+                    Continuous pleasantness scale (HKStateOfMind.valence):
+                    - -1.0: Very unpleasant
+                    - 0.0: Neutral
+                    - +1.0: Very pleasant
+                  example: 0.6
+                labels:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 50
+                  description: |
+                    Descriptive mood labels (e.g., "happy", "stressed", "anxious").
+                    Maps to HKStateOfMind.labels.
+                    Common labels: happy, sad, anxious, stressed, calm, excited, tired, energetic,
+                    content, frustrated, relaxed, overwhelmed, peaceful, irritated, focused
+                  example: ["happy", "energetic", "content"]
+                associations:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 50
+                  description: |
+                    Contextual associations/triggers (e.g., "work", "family", "exercise").
+                    Maps to HKStateOfMind.associations.
+                    Common associations: work, family, friends, exercise, sleep, health,
+                    relationships, finances, hobbies, travel, weather, social
+                  example: ["exercise", "social"]
+                mood_score:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  deprecated: true
+                  description: |
+                    **DEPRECATED:** Legacy 1-10 mood score for backward compatibility.
+                    Will be converted to valence internally.
+                    Use `valence` for new implementations.
+                  example: 8
+                logged_at:
+                  type: string
+                  format: date-time
+                  description: When the mood was experienced (RFC3339). Defaults to current time.
+                  example: "2024-01-15T14:30:00Z"
+                source:
+                  type: string
+                  enum: [healthkit, manual, ai_analysis]
+                  default: manual
+                  description: Data source
+                  example: "healthkit"
+                source_id:
+                  type: string
+                  maxLength: 255
+                  description: |
+                    External source identifier for deduplication (e.g., HKStateOfMind UUID).
+                    Required for HealthKit entries to prevent duplicates.
+                  example: "HK-MOOD-550e8400-e29b-41d4-a716-446655440000"
+                notes:
+                  type: string
+                  maxLength: 1000
+                  description: Optional user notes or context
+                  example: "Felt great after morning workout and coffee with friends"
+            examples:
+              hkStateOfMind:
+                summary: HKStateOfMind entry from iOS 18+
+                value:
+                  valence: 0.65
+                  labels: ["happy", "energetic", "content"]
+                  associations: ["exercise", "social"]
+                  logged_at: "2024-01-15T14:30:00Z"
+                  source: "healthkit"
+                  source_id: "HK-MOOD-550e8400-e29b-41d4-a716-446655440000"
+              manualEntry:
+                summary: Manual mood entry with notes
+                value:
+                  valence: -0.4
+                  labels: ["stressed", "anxious"]
+                  associations: ["work", "deadlines"]
+                  notes: "Big project deadline approaching"
+                  source: "manual"
+              legacyScore:
+                summary: Legacy mood score (backward compatibility)
+                value:
+                  mood_score: 7
+                  notes: "Feeling good today"
+              minimalEntry:
+                summary: Minimal valid entry
+                value:
+                  labels: ["neutral"]
+      responses:
+        "201":
+          description: Mood entry created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodEntryResponse"
+        "200":
+          description: Existing entry returned (duplicate source_id)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodEntryResponse"
+        "400":
+          description: Bad Request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidValence:
+                  summary: Valence out of range
+                  value:
+                    success: false
+                    error:
+                      message: "valence must be between -1.0 and 1.0"
+                      code: "INVALID_VALENCE"
+                emptyLabels:
+                  summary: Empty labels array
+                  value:
+                    success: false
+                    error:
+                      message: "labels array must contain at least 1 item"
+                      code: "INVALID_LABELS"
+                missingData:
+                  summary: No mood data provided
+                  value:
+                    success: false
+                    error:
+                      message: "At least one of valence, mood_score, or labels must be provided"
+                      code: "INSUFFICIENT_DATA"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: Get mood entries with pagination and filtering
+      description: |
+        Retrieve mood entries within a date range with optional filtering.
+        Defaults to last 30 days if no dates specified.
+
+        **Sorting:** Entries are returned in reverse chronological order (newest first).
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD), defaults to 30 days ago
+          example: "2024-01-01"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD), defaults to today
+          example: "2024-01-31"
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [healthkit, manual, ai_analysis]
+          description: Filter by data source
+        - name: label
+          in: query
+          schema:
+            type: string
+          description: Filter by specific label (exact match)
+          example: "happy"
+        - name: association
+          in: query
+          schema:
+            type: string
+          description: Filter by specific association (exact match)
+          example: "work"
+        - name: min_valence
+          in: query
+          schema:
+            type: number
+            format: float
+            minimum: -1.0
+            maximum: 1.0
+          description: Filter entries with valence >= this value
+        - name: max_valence
+          in: query
+          schema:
+            type: number
+            format: float
+            minimum: -1.0
+            maximum: 1.0
+          description: Filter entries with valence <= this value
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+          description: Number of entries to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of entries to skip for pagination
+      responses:
+        "200":
+          description: Mood entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodListResponse"
+        "400":
+          description: Bad Request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/mood/{id}:
+    get:
+      summary: Get mood entry by ID
+      description: Retrieve a specific mood entry by its unique identifier
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mood entry ID
+      responses:
+        "200":
+          description: Mood entry retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodEntryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mood entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: Update mood entry
+      description: |
+        Update an existing mood entry. Only entries with source="manual" can be updated.
+        HealthKit entries are read-only to maintain data integrity.
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mood entry ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valence:
+                  type: number
+                  format: float
+                  minimum: -1.0
+                  maximum: 1.0
+                labels:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+                associations:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: string
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        "200":
+          description: Mood entry updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodEntryResponse"
+        "400":
+          description: Bad Request - Invalid input or HealthKit entry cannot be modified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mood entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Delete mood entry
+      description: |
+        Delete a mood entry. Only entries with source="manual" can be deleted.
+        HealthKit entries cannot be deleted to maintain data integrity.
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mood entry ID
+      responses:
+        "204":
+          description: Mood entry deleted successfully
+        "400":
+          description: Bad Request - HealthKit entry cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not entry owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mood entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/mood/daily/{date}:
+    get:
+      summary: Get daily mood aggregate
+      description: |
+        Retrieve aggregated mood data for a specific date including:
+        - Average valence
+        - Most common labels
+        - Most common associations
+        - Entry count
+        - Optional: Individual entries for the day
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date in YYYY-MM-DD format
+          example: "2024-01-15"
+        - name: include_entries
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include individual entries for the day
+      responses:
+        "200":
+          description: Daily mood aggregate retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodDailyAggregateResponse"
+        "400":
+          description: Bad Request - Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/mood/trends:
+    get:
+      summary: Get mood trends over time
+      description: |
+        Retrieve daily mood aggregates over a date range for trend analysis.
+        Returns daily statistics including average valence, common labels, and entry counts.
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD)
+          example: "2024-01-01"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD)
+          example: "2024-01-31"
+      responses:
+        "200":
+          description: Mood trends retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodTrendsResponse"
+        "400":
+          description: Bad Request - Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/mood/analytics/labels:
+    get:
+      summary: Get label frequency analytics
+      description: |
+        Analyze label usage frequency over a time period.
+        Returns top labels with counts and percentage of total entries.
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD), defaults to 30 days ago
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD), defaults to today
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          description: Number of top labels to return
+      responses:
+        "200":
+          description: Label analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodLabelAnalyticsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/mood/analytics/associations:
+    get:
+      summary: Get association frequency analytics
+      description: |
+        Analyze association usage frequency over a time period.
+        Returns top associations with counts and average valence when associated.
+      tags: [Mood]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD), defaults to 30 days ago
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD), defaults to today
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          description: Number of top associations to return
+      responses:
+        "200":
+          description: Association analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodAssociationAnalyticsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        error:
+          type: object
+          nullable: true
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+          required:
+            - message
+      required:
+        - success
+        - error
+
+    MoodEntryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the mood entry
+        user_id:
+          type: string
+          format: uuid
+          description: User ID associated with the entry
+        valence:
+          type: number
+          format: float
+          minimum: -1.0
+          maximum: 1.0
+          nullable: true
+          description: Continuous pleasantness scale
+          example: 0.6
+        labels:
+          type: array
+          items:
+            type: string
+          description: Descriptive mood labels
+          example: ["happy", "energetic"]
+        associations:
+          type: array
+          items:
+            type: string
+          description: Contextual associations
+          example: ["exercise", "social"]
+        mood_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+          nullable: true
+          deprecated: true
+          description: Legacy mood score (if converted from valence)
+        logged_at:
+          type: string
+          format: date-time
+          description: When the mood was experienced
+        source:
+          type: string
+          enum: [healthkit, manual, ai_analysis]
+          description: Data source
+        source_id:
+          type: string
+          nullable: true
+          description: External source identifier
+        notes:
+          type: string
+          nullable: true
+          description: User notes
+        created_at:
+          type: string
+          format: date-time
+          description: When the entry was created
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the entry was last updated
+
+    MoodListResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodEntryResponse"
+          description: List of mood entries
+        total:
+          type: integer
+          description: Total number of entries matching filters
+          example: 45
+        limit:
+          type: integer
+          description: Number of results per page
+          example: 30
+        offset:
+          type: integer
+          description: Pagination offset
+          example: 0
+        has_more:
+          type: boolean
+          description: Whether more results are available
+          example: true
+
+    MoodDailyAggregateResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date of aggregation (YYYY-MM-DD)
+          example: "2024-01-15"
+        entry_count:
+          type: integer
+          description: Number of entries for the day
+          example: 5
+        average_valence:
+          type: number
+          format: float
+          nullable: true
+          description: Average valence for the day
+          example: 0.45
+        valence_range:
+          type: object
+          nullable: true
+          properties:
+            min:
+              type: number
+              format: float
+            max:
+              type: number
+              format: float
+          description: Min and max valence for the day
+        top_labels:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              count:
+                type: integer
+          description: Most frequent labels for the day
+          example:
+            - label: "happy"
+              count: 3
+            - label: "energetic"
+              count: 2
+        top_associations:
+          type: array
+          items:
+            type: object
+            properties:
+              association:
+                type: string
+              count:
+                type: integer
+          description: Most frequent associations for the day
+          example:
+            - association: "exercise"
+              count: 2
+            - association: "social"
+              count: 2
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodEntryResponse"
+          nullable: true
+          description: Individual entries (only if include_entries=true)
+
+    MoodTrendsResponse:
+      type: object
+      properties:
+        start_date:
+          type: string
+          format: date
+          description: Start date of trend period
+        end_date:
+          type: string
+          format: date
+          description: End date of trend period
+        total_entries:
+          type: integer
+          description: Total number of entries in period
+        average_valence:
+          type: number
+          format: float
+          nullable: true
+          description: Overall average valence for period
+        daily_data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodDailyAggregateResponse"
+          description: Daily aggregates for the period
+        trend_direction:
+          type: string
+          enum: [improving, stable, declining, insufficient_data]
+          description: Overall trend direction based on valence changes
+        valence_statistics:
+          type: object
+          nullable: true
+          properties:
+            min:
+              type: number
+              format: float
+            max:
+              type: number
+              format: float
+            median:
+              type: number
+              format: float
+            std_deviation:
+              type: number
+              format: float
+          description: Statistical analysis of valence over period
+
+    MoodLabelAnalyticsResponse:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+        total_entries:
+          type: integer
+          description: Total entries in period
+        unique_labels:
+          type: integer
+          description: Number of unique labels used
+        top_labels:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              count:
+                type: integer
+                description: Number of times this label was used
+              percentage:
+                type: number
+                format: float
+                description: Percentage of total entries
+              average_valence:
+                type: number
+                format: float
+                nullable: true
+                description: Average valence when this label was used
+          description: Top labels by frequency
+
+    MoodAssociationAnalyticsResponse:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+        total_entries:
+          type: integer
+          description: Total entries in period
+        unique_associations:
+          type: integer
+          description: Number of unique associations used
+        top_associations:
+          type: array
+          items:
+            type: object
+            properties:
+              association:
+                type: string
+              count:
+                type: integer
+                description: Number of times this association was used
+              percentage:
+                type: number
+                format: float
+                description: Percentage of total entries
+              average_valence:
+                type: number
+                format: float
+                nullable: true
+                description: Average valence when associated
+              valence_impact:
+                type: string
+                enum: [positive, neutral, negative]
+                description: Whether this association tends to correlate with positive/negative mood
+          description: Top associations by frequency with valence analysis
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      name: X-API-Key
+      in: header
+      description: API key for request authentication
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/v1/auth/login
+
+security:
+  - ApiKey: []
+    BearerAuth: []
+
+tags:
+  - name: Mood
+    description: Mood tracking and analytics endpoints with HKStateOfMind support

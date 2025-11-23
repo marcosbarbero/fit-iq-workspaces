@@ -1,0 +1,1910 @@
+openapi: 3.0.3
+info:
+  title: FitIQ Backend API - Core Features Subset
+  version: 0.32.0-subset
+  description: >
+    Focused subset of FitIQ Backend API containing essential wellness features:
+
+    **Included Features:**
+    - **Registration & Login** - User authentication and account creation
+    - **Mood Tracking** - Log mood, emotions, and view statistics
+    - **AI Wellness Consulting** - Real-time AI coaching with multiple personas (nutritionist, fitness coach, wellness specialist)
+
+    **Note:** Journaling functionality is not currently available in the API.
+    Mood logging with notes (up to 500 characters) can serve as a basic journaling alternative.
+
+    **Security:** JWT bearer token + X-API-Key authentication required for protected endpoints.
+
+    **Base URL:** /
+
+servers:
+  - url: /
+
+tags:
+  - name: Auth
+    description: User registration and authentication
+  - name: Mood
+    description: Mood tracking and emotional wellness
+  - name: Consultations
+    description: AI wellness coaching with real-time chat
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      name: X-API-Key
+      in: header
+      description: API key for client identification
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login or registration
+
+  schemas:
+    # ---------- Standard Responses ----------
+    StandardResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          description: Response data payload
+      required: [data]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+              description: Human-readable error message
+            code:
+              type: string
+              description: Machine-readable error code
+          required: [message]
+      required: [error]
+
+    # ---------- Profile / UserProfile ----------
+    UserProfileRequest:
+      type: object
+      required: [name, preferred_unit_system]
+      properties:
+        name: { type: string }
+        bio: { type: string }
+        preferred_unit_system:
+          type: string
+          enum: [metric, imperial]
+          default: metric
+        language_code: { type: string }
+
+    UserProfileResponseData:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        name: { type: string }
+        bio: { type: string }
+        preferred_unit_system:
+          type: string
+          enum: [metric, imperial]
+        language_code: { type: string }
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+          description: "Date of birth (YYYY-MM-DD). Optional field for age calculation."
+          example: "1990-05-15"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ---------- Authentication ----------
+    RegisterRequest:
+      type: object
+      required: [email, password, name, date_of_birth]
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          description: User password (minimum 8 characters)
+          example: "SecurePass123!"
+        name:
+          type: string
+          description: User's full name
+          example: "John Doe"
+        date_of_birth:
+          type: string
+          format: date
+          description: "Date of birth. REQUIRED for COPPA compliance - users must be 13+ years old. Accepts multiple formats: YYYY-MM-DD (preferred) or RFC3339 (e.g., 2006-01-02T15:04:05Z)."
+          example: "1990-05-15"
+
+    RegisterResponseData:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User email address
+        name:
+          type: string
+          description: User's full name
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        access_token:
+          type: string
+          description: JWT access token for authentication
+        refresh_token:
+          type: string
+          description: Refresh token for obtaining new access tokens
+      required: [user_id, email, name, created_at, access_token, refresh_token]
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          description: User password
+          example: "SecurePass123!"
+
+    LoginResponseData:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token for authentication
+        refresh_token:
+          type: string
+          description: Refresh token for obtaining new access tokens
+      required: [access_token, refresh_token]
+
+    # ---------- Mood Tracking ----------
+    MoodLogRequest:
+      type: object
+      required: [logged_at]
+      properties:
+        valence:
+          type: number
+          format: double
+          minimum: -1.0
+          maximum: 1.0
+          description: Emotional valence from -1.0 (very unpleasant) to 1.0 (very pleasant). Based on Apple HealthKit's mental wellness model.
+          example: 0.5
+        labels:
+          type: array
+          items:
+            type: string
+            enum:
+              [
+                amazed,
+                grateful,
+                happy,
+                proud,
+                hopeful,
+                content,
+                peaceful,
+                excited,
+                joyful,
+                sad,
+                angry,
+                stressed,
+                anxious,
+                frustrated,
+                overwhelmed,
+                lonely,
+                scared,
+                worried,
+              ]
+          description: Optional list of mood labels (emotional states)
+          example: ["happy", "peaceful"]
+        associations:
+          type: array
+          items:
+            type: string
+            enum:
+              [
+                community,
+                currentEvents,
+                dating,
+                family,
+                friends,
+                partner,
+                fitness,
+                hobbies,
+                chores,
+                education,
+                work,
+                identity,
+                health,
+                selfCare,
+                travel,
+                weather,
+                tasks,
+              ]
+          description: Optional contextual associations
+          example: ["fitness", "friends"]
+        notes:
+          type: string
+          maxLength: 1000
+          description: Optional notes about mood and feelings
+          example: "Had a great workout today, feeling energized!"
+        logged_at:
+          type: string
+          format: date-time
+          description: When the mood was logged (RFC3339 format, cannot be in future)
+          example: "2024-01-15T14:30:00Z"
+        source:
+          type: string
+          enum: [manual, healthkit, api]
+          description: Source of the mood entry (defaults to 'manual' if not specified)
+          example: "manual"
+        source_id:
+          type: string
+          description: External source identifier (required for HealthKit entries)
+          example: "HKSample-123456"
+
+    MoodLogResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Mood log entry ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_id:
+          type: string
+          format: uuid
+          description: User ID
+        valence:
+          type: number
+          format: double
+          minimum: -1.0
+          maximum: 1.0
+          description: Emotional valence from -1.0 (very unpleasant) to 1.0 (very pleasant)
+          example: 0.5
+        labels:
+          type: array
+          items:
+            type: string
+          description: List of mood labels (emotional states)
+          example: ["happy", "peaceful"]
+        associations:
+          type: array
+          items:
+            type: string
+          description: List of contextual associations
+          example: ["fitness", "friends"]
+        notes:
+          type: string
+          description: User notes
+          example: "Had a great workout today, feeling energized!"
+        logged_at:
+          type: string
+          format: date-time
+          description: When the mood was logged
+          example: "2024-01-15T14:30:00Z"
+        source:
+          type: string
+          enum: [manual, healthkit, api]
+          description: Source of the mood entry
+          example: "manual"
+        source_id:
+          type: string
+          description: External source identifier (e.g., HealthKit sample ID)
+          example: "HKSample-123456"
+        is_healthkit:
+          type: boolean
+          description: Whether this entry originated from HealthKit
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    MoodListResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodLogResponse"
+          description: List of mood log entries
+        total:
+          type: integer
+          description: Total number of mood logs matching the query
+          example: 45
+        limit:
+          type: integer
+          description: Number of results per page
+          example: 50
+        offset:
+          type: integer
+          description: Number of items skipped
+          example: 0
+        has_more:
+          type: boolean
+          description: Whether there are more results to fetch
+          example: true
+
+    MoodStatisticsResponse:
+      type: object
+      description: Mood analytics for a time period
+      properties:
+        period:
+          type: object
+          properties:
+            start_date:
+              type: string
+              format: date
+              description: Start date of the period
+              example: "2024-01-01"
+            end_date:
+              type: string
+              format: date
+              description: End date of the period
+              example: "2024-01-31"
+            total_days:
+              type: integer
+              description: Number of days in the period
+              example: 31
+        summary:
+          type: object
+          properties:
+            total_entries:
+              type: integer
+              description: Total number of mood entries in the period
+              example: 45
+            average_valence:
+              type: number
+              format: double
+              description: Average valence for the period (-1.0 to 1.0)
+              example: 0.35
+            days_with_entries:
+              type: integer
+              description: Number of days with at least one entry
+              example: 28
+            logging_consistency:
+              type: number
+              format: double
+              description: Percentage of days with entries (0.0 to 1.0)
+              example: 0.903
+        trends:
+          type: object
+          properties:
+            trend_direction:
+              type: string
+              enum: [improving, stable, declining, insufficient_data]
+              description: Overall mood trend direction
+              example: "improving"
+            weekly_averages:
+              type: array
+              items:
+                type: object
+                properties:
+                  week_start:
+                    type: string
+                    format: date
+                    description: Start date of the week
+                    example: "2024-01-01"
+                  average_valence:
+                    type: number
+                    format: double
+                    description: Average valence for the week
+                    example: 0.4
+              description: Weekly average valence values
+        top_labels:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+                description: Mood label
+                example: "happy"
+              count:
+                type: integer
+                description: Number of occurrences
+                example: 15
+              percentage:
+                type: number
+                format: double
+                description: Percentage of total entries (0.0 to 1.0)
+                example: 0.333
+          description: Most frequently used mood labels
+        top_associations:
+          type: array
+          items:
+            type: object
+            properties:
+              association:
+                type: string
+                description: Association context
+                example: "fitness"
+              count:
+                type: integer
+                description: Number of occurrences
+                example: 20
+              percentage:
+                type: number
+                format: double
+                description: Percentage of total entries (0.0 to 1.0)
+                example: 0.444
+              average_valence:
+                type: number
+                format: double
+                description: Average valence for this association
+                example: 0.6
+          description: Most frequently used associations with their average valence
+        daily_aggregates:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+                description: Date of the aggregate
+                example: "2024-01-15"
+              entry_count:
+                type: integer
+                description: Number of entries for this day
+                example: 3
+              average_valence:
+                type: number
+                format: double
+                description: Average valence for the day
+                example: 0.5
+              min_valence:
+                type: number
+                format: double
+                description: Minimum valence for the day
+                example: 0.2
+              max_valence:
+                type: number
+                format: double
+                description: Maximum valence for the day
+                example: 0.8
+              most_common_labels:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    label:
+                      type: string
+                      example: "happy"
+                    count:
+                      type: integer
+                      example: 2
+              most_common_associations:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    association:
+                      type: string
+                      example: "fitness"
+                    count:
+                      type: integer
+                      example: 2
+          description: Daily breakdown (only included if requested)
+
+    # ---------- AI Consultations ----------
+    CreateConsultationRequest:
+      type: object
+      required: [persona]
+      properties:
+        persona:
+          type: string
+          enum: [nutritionist, fitness_coach, wellness_specialist]
+          description: "AI coach persona type: nutritionist (nutrition advice), fitness_coach (workout planning), wellness_specialist (sleep, stress, lifestyle)"
+          example: "nutritionist"
+        goal_id:
+          type: string
+          format: uuid
+          description: Optional goal ID to link with consultation
+          nullable: true
+        initial_message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Optional initial message from user to start the conversation
+          nullable: true
+          example: "I want to improve my sleep quality"
+
+    CreateConsultationResponse:
+      type: object
+      properties:
+        consultation:
+          $ref: "#/components/schemas/ConsultationResponse"
+        greeting_message:
+          $ref: "#/components/schemas/MessageResponse"
+          nullable: true
+          description: AI greeting message if no initial message provided
+        needs_survey:
+          type: boolean
+          description: Whether user needs to update survey data
+        survey_message:
+          type: string
+          nullable: true
+          description: Message about stale survey if applicable
+      required: [consultation, needs_survey]
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Message content to send to AI coach
+          example: "What should I eat for breakfast to support my weight loss goals?"
+
+    SendMessageResponse:
+      type: object
+      properties:
+        user_message:
+          $ref: "#/components/schemas/MessageResponse"
+        assistant_message:
+          $ref: "#/components/schemas/MessageResponse"
+          nullable: true
+          description: AI response (immediate or via WebSocket streaming)
+      required: [user_message]
+
+    ConsultationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Consultation ID
+        user_id:
+          type: string
+          format: uuid
+          description: User ID
+        persona:
+          type: string
+          enum: [nutritionist, fitness_coach, wellness_specialist]
+          description: AI coach persona type
+        status:
+          type: string
+          enum: [pending, active, completed, abandoned, archived]
+          description: Consultation status
+        goal_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Linked goal ID if applicable
+        started_at:
+          type: string
+          format: date-time
+          description: When consultation started
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When consultation completed
+        last_message_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last message
+        message_count:
+          type: integer
+          description: Total number of messages in consultation
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+      required:
+        [
+          id,
+          user_id,
+          persona,
+          status,
+          started_at,
+          message_count,
+          created_at,
+          updated_at,
+        ]
+
+    MessageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Message ID
+        consultation_id:
+          type: string
+          format: uuid
+          description: Consultation ID
+        role:
+          type: string
+          enum: [user, assistant, system, function]
+          description: Message role (user, assistant, system, or function)
+        content:
+          type: string
+          description: Message content
+        function_name:
+          type: string
+          nullable: true
+          description: Function name (for function role messages)
+        function_args:
+          type: string
+          nullable: true
+          description: Function arguments JSON (for function role messages)
+        tokens_used:
+          type: integer
+          nullable: true
+          description: Tokens consumed (for assistant messages)
+        processing_time_ms:
+          type: integer
+          nullable: true
+          description: Processing time in milliseconds (for assistant messages)
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required: [id, consultation_id, role, content, created_at]
+
+    MessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageResponse"
+          description: List of messages
+        total_count:
+          type: integer
+          description: Total number of messages
+        limit:
+          type: integer
+          description: Page size
+        offset:
+          type: integer
+          description: Page offset
+      required: [messages, total_count, limit, offset]
+
+    # ---------- WebSocket Message Schemas ----------
+    WSClientMessage:
+      type: object
+      required: [type, content]
+      properties:
+        type:
+          type: string
+          enum: [message]
+          description: Message type - must be 'message' for user messages
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: User message content
+      example:
+        type: "message"
+        content: "What should I eat for breakfast?"
+
+    WSPingMessage:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [ping]
+          description: Message type - must be 'ping' for keep-alive
+      example:
+        type: "ping"
+
+    WSConnectedMessage:
+      type: object
+      required: [type, consultation_id, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [connected]
+          description: Sent when WebSocket connection is established
+        consultation_id:
+          type: string
+          format: uuid
+          description: The consultation ID for this connection
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+      example:
+        type: "connected"
+        consultation_id: "consult-123e4567-e89b-12d3-a456-426614174000"
+        timestamp: "2025-01-10T14:30:00Z"
+
+    WSMessageReceivedMessage:
+      type: object
+      required: [type, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [message_received]
+          description: Sent to acknowledge receipt of user message
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+      example:
+        type: "message_received"
+        timestamp: "2025-01-10T14:30:05Z"
+
+    WSStreamChunkMessage:
+      type: object
+      required: [type, content, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [stream_chunk]
+          description: AI response chunk during streaming
+        content:
+          type: string
+          description: Chunk of AI response text
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+      example:
+        type: "stream_chunk"
+        content: "Based on your profile and recent eating patterns, I recommend "
+        timestamp: "2025-01-10T14:30:06Z"
+
+    WSStreamCompleteMessage:
+      type: object
+      required: [type, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [stream_complete]
+          description: Sent when AI response streaming is complete
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+        metadata:
+          type: object
+          nullable: true
+          description: Optional metadata about the completed response
+          properties:
+            tokens_used:
+              type: integer
+              description: Total tokens consumed by AI
+            processing_time_ms:
+              type: integer
+              description: Total processing time in milliseconds
+            function_calls:
+              type: integer
+              description: Number of function calls made by AI
+      example:
+        type: "stream_complete"
+        timestamp: "2025-01-10T14:30:10Z"
+        metadata:
+          tokens_used: 487
+          processing_time_ms: 3240
+          function_calls: 2
+
+    WSPongMessage:
+      type: object
+      required: [type, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [pong]
+          description: Keep-alive response to ping
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+      example:
+        type: "pong"
+        timestamp: "2025-01-10T14:35:00Z"
+
+    WSErrorMessage:
+      type: object
+      required: [type, error, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [error]
+          description: Error notification
+        error:
+          type: string
+          description: Error message describing what went wrong
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+        code:
+          type: string
+          nullable: true
+          description: Optional error code for client handling
+      example:
+        type: "error"
+        error: "Consultation is not active"
+        timestamp: "2025-01-10T14:30:00Z"
+        code: "CONSULTATION_NOT_ACTIVE"
+
+security:
+  - ApiKey: []
+  - BearerAuth: []
+
+paths:
+  # ========== Authentication ==========
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      security: [{ ApiKey: [] }]
+      summary: Register user (returns JWT)
+      description: |
+        Create a new user account. Requires API key for client identification.
+        Returns user profile data along with JWT tokens for immediate use.
+
+        **COPPA Compliance:** Users must be 13+ years old.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              basic:
+                summary: Basic registration
+                value:
+                  email: "newuser@example.com"
+                  password: "SecurePass123!"
+                  name: "John Doe"
+                  date_of_birth: "1990-05-15"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/RegisterResponseData"
+        "400":
+          description: Bad Request - Invalid input or age < 13
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Conflict - Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      security: [{ ApiKey: [] }]
+      summary: Login (returns JWT)
+      description: |
+        Authenticate user and obtain JWT tokens.
+        Requires API key for client identification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: "user@example.com"
+              password: "SecurePass123!"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/LoginResponseData"
+        "401":
+          description: Unauthorized - Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  # ---------- Profile ----------
+  /api/v1/users/me:
+    post:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Create user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserProfileRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserProfileResponseData"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Conflict (profile already exists)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    get:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Get current user's profile
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserProfileResponseData"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    put:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserProfileRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserProfileResponseData"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    delete:
+      tags: [Profile]
+      security: [{ ApiKey: [], BearerAuth: [] }]
+      summary: Delete user account (GDPR - Right to be Forgotten)
+      description: |
+        Permanently deletes the user account and all associated data including:
+        - User profile and preferences
+        - All workouts, exercises, and templates
+        - All food logs and nutrition data
+        - All metrics and progress notes
+        - All goals and consultation history
+        - All refresh tokens and sessions
+
+        This operation cannot be undone. The user will need to register again to use the service.
+      responses:
+        "204":
+          description: No Content - User account successfully deleted
+        "401":
+          description: Unauthorized - Invalid or missing authentication
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not Found - User not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Internal Server Error - Failed to delete user account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  # ---------- Mood Tracking ----------
+  /api/v1/wellness/mood-entries:
+    post:
+      summary: Log mood entry
+      description: |
+        Create a new mood log entry with emotional valence, labels, associations, and optional notes.
+        Valence ranges from -1.0 (very unpleasant) to 1.0 (very pleasant), based on Apple HealthKit's mental wellness model.
+        Supports manual entries, HealthKit sync, and API integrations.
+      tags:
+        - Mood
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoodLogRequest"
+            examples:
+              simple:
+                summary: Simple mood log
+                value:
+                  valence: 0.5
+                  logged_at: "2024-01-15T14:30:00Z"
+              detailed:
+                summary: Detailed mood log with labels and associations
+                value:
+                  valence: 0.7
+                  labels: ["happy", "peaceful", "content"]
+                  associations: ["fitness", "friends"]
+                  notes: "Had a great workout today, feeling energized!"
+                  logged_at: "2024-01-15T14:30:00Z"
+              healthkit:
+                summary: HealthKit mood entry
+                value:
+                  valence: 0.3
+                  labels: ["grateful", "hopeful"]
+                  associations: ["health", "selfCare"]
+                  logged_at: "2024-01-15T14:30:00Z"
+                  source: "healthkit"
+                  source_id: "HKSample-123456"
+      responses:
+        "201":
+          description: Mood log created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodLogResponse"
+        "400":
+          description: Bad Request - Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    get:
+      summary: List mood logs
+      description: |
+        Retrieve mood logs within a date range with pagination and optional filtering.
+        Defaults to last 30 days if no dates specified.
+        Supports filtering by source (manual, healthkit, api).
+      tags:
+        - Mood
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start date/time (RFC3339 or YYYY-MM-DD), defaults to 30 days ago
+          example: "2024-01-01"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End date/time (RFC3339 or YYYY-MM-DD), defaults to today
+          example: "2024-01-31"
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [manual, healthkit, api]
+          description: Filter by entry source
+          example: "manual"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Number of logs to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of logs to skip for pagination
+      responses:
+        "200":
+          description: Mood logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodListResponse"
+        "400":
+          description: Bad Request - Invalid date format
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/v1/wellness/mood-entries/{id}:
+    get:
+      summary: Get mood log by ID
+      description: Retrieve a specific mood log entry
+      tags:
+        - Mood
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mood log ID
+      responses:
+        "200":
+          description: Mood log retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodLogResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden - Not mood log owner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Mood log not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    put:
+      summary: Update mood log
+      description: |
+        Update an existing mood log entry.
+        Note: HealthKit entries cannot be edited to maintain data integrity.
+      tags:
+        - Mood
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mood log ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoodLogRequest"
+      responses:
+        "200":
+          description: Mood log updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodLogResponse"
+        "400":
+          description: Bad Request - Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden - Not mood log owner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Mood log not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    delete:
+      summary: Delete mood log
+      description: Delete a mood log entry
+      tags:
+        - Mood
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mood log ID
+      responses:
+        "204":
+          description: Mood log deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden - Not mood log owner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Mood log not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/v1/wellness/mood-entries/analytics:
+    get:
+      summary: Get mood analytics
+      description: |
+        Get comprehensive mood analytics and statistics for a time period.
+        Includes average valence, trends, top labels, top associations, and optional daily breakdown.
+        Returns empty/zero values when no mood entries exist for the specified period.
+      tags:
+        - Mood
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Start date (RFC3339 or YYYY-MM-DD)
+          example: "2024-01-01"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: End date (RFC3339 or YYYY-MM-DD)
+          example: "2024-01-31"
+        - name: include_daily_breakdown
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include daily aggregates in the response
+          example: true
+        - name: top_labels_limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+          description: Maximum number of top labels to return
+          example: 10
+        - name: top_associations_limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+          description: Maximum number of top associations to return
+          example: 10
+      responses:
+        "200":
+          description: Mood statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MoodStatisticsResponse"
+        "400":
+          description: Bad Request - Invalid date format or range
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  # ========== AI Wellness Consulting ==========
+  /api/v1/consultations:
+    post:
+      summary: Create a new AI coaching consultation
+      description: |
+        Start a new consultation with an AI coach persona.
+
+        **Available Personas:**
+        - **nutritionist** - Nutrition advice, meal planning, dietary guidance
+        - **fitness_coach** - Workout planning, exercise guidance, training programs
+        - **wellness_specialist** - Sleep optimization, stress management, lifestyle balance
+
+        The AI coach can access your profile data, goals, and health metrics to provide personalized advice.
+        All AI-created templates (wellness, meal, workout) are saved for your review.
+      tags: [Consultations]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConsultationRequest"
+            examples:
+              nutritionist:
+                summary: Nutritionist consultation
+                value:
+                  persona: "nutritionist"
+              wellness_with_message:
+                summary: Wellness specialist with initial message
+                value:
+                  persona: "wellness_specialist"
+                  initial_message: "I want to improve my sleep quality and reduce stress"
+      responses:
+        "201":
+          description: Consultation created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CreateConsultationResponse"
+        "400":
+          description: Invalid request (e.g., invalid persona)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Conflicting consultation (already have active consultation)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/consultations/{id}:
+    get:
+      summary: Get consultation details
+      description: Retrieve details of a specific consultation including message count
+      tags: [Consultations]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+      responses:
+        "200":
+          description: Consultation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ConsultationResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not consultation owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/consultations/{id}/messages:
+    post:
+      summary: Send a message to consultation
+      description: |
+        Send a user message to an active consultation.
+        AI response will be streamed via WebSocket if connected, or returned immediately.
+      tags: [Consultations]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+            example:
+              content: "What should I eat for breakfast to support my weight loss goals?"
+      responses:
+        "201":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/SendMessageResponse"
+        "400":
+          description: Invalid request (e.g., consultation not active, empty content)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not consultation owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: Get consultation message history
+      description: Retrieve paginated message history for a consultation
+      tags: [Consultations]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Number of messages per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+      responses:
+        "200":
+          description: Message history retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MessagesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not consultation owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/consultations/{id}/ws:
+    get:
+      summary: WebSocket for real-time AI coaching
+      description: |
+        Establish a WebSocket connection for real-time AI coaching with streaming responses.
+
+        **Authentication:**
+        Must provide both JWT token (Authorization header) and API Key (X-API-Key header)
+        during WebSocket upgrade handshake.
+
+        **Message Flow:**
+        1. Client connects → Server sends `connected` message
+        2. Client sends `message` → Server acknowledges with `message_received`
+        3. Server streams AI response as multiple `stream_chunk` messages
+        4. Server sends `stream_complete` when response is done
+        5. Client can send `ping` → Server responds with `pong` for keep-alive
+
+        **Example JavaScript:**
+        ```javascript
+        const ws = new WebSocket('wss://api.fitiq.com/api/v1/consultations/consult-123/ws', {
+          headers: {
+            'Authorization': 'Bearer YOUR_JWT_TOKEN',
+            'X-API-Key': 'YOUR_API_KEY'
+          }
+        });
+
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case 'connected':
+              console.log('Connected to consultation:', msg.consultation_id);
+              break;
+            case 'stream_chunk':
+              console.log('AI chunk:', msg.content);
+              break;
+            case 'stream_complete':
+              console.log('AI response complete');
+              break;
+            case 'error':
+              console.error('Error:', msg.error);
+              break;
+          }
+        };
+
+        // Send user message
+        ws.send(JSON.stringify({
+          type: 'message',
+          content: 'What should I eat for breakfast?'
+        }));
+        ```
+      tags: [Consultations]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+        - name: Upgrade
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [websocket]
+          description: Must be 'websocket' to upgrade connection
+        - name: Connection
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [Upgrade]
+          description: Must be 'Upgrade' for WebSocket
+        - name: Sec-WebSocket-Key
+          in: header
+          required: true
+          schema:
+            type: string
+          description: WebSocket handshake key
+        - name: Sec-WebSocket-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["13"]
+          description: WebSocket protocol version (must be 13)
+      responses:
+        "101":
+          description: |
+            Switching Protocols - WebSocket connection established.
+
+            After upgrade, all communication happens via WebSocket frames.
+            Messages are JSON-formatted.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/WSConnectedMessage"
+                  - $ref: "#/components/schemas/WSMessageReceivedMessage"
+                  - $ref: "#/components/schemas/WSStreamChunkMessage"
+                  - $ref: "#/components/schemas/WSStreamCompleteMessage"
+                  - $ref: "#/components/schemas/WSPongMessage"
+                  - $ref: "#/components/schemas/WSErrorMessage"
+              examples:
+                connected:
+                  summary: Connection established
+                  value:
+                    type: "connected"
+                    consultation_id: "consult-123e4567-e89b-12d3-a456-426614174000"
+                    timestamp: "2025-01-10T14:30:00Z"
+                message_received:
+                  summary: Message acknowledged
+                  value:
+                    type: "message_received"
+                    timestamp: "2025-01-10T14:30:05Z"
+                stream_chunk:
+                  summary: AI response chunk
+                  value:
+                    type: "stream_chunk"
+                    content: "Based on your profile and recent eating patterns, I recommend "
+                    timestamp: "2025-01-10T14:30:06Z"
+                stream_complete:
+                  summary: AI response complete
+                  value:
+                    type: "stream_complete"
+                    timestamp: "2025-01-10T14:30:10Z"
+                    metadata:
+                      tokens_used: 487
+                      processing_time_ms: 3240
+                pong:
+                  summary: Keep-alive response
+                  value:
+                    type: "pong"
+                    timestamp: "2025-01-10T14:35:00Z"
+                error:
+                  summary: Error notification
+                  value:
+                    type: "error"
+                    error: "Consultation is not active"
+                    timestamp: "2025-01-10T14:30:00Z"
+        "400":
+          description: Bad Request - Invalid WebSocket upgrade or consultation not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not consultation owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        description: |
+          Client messages sent over WebSocket connection.
+          All messages must be valid JSON with a `type` field.
+        required: false
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/WSClientMessage"
+                - $ref: "#/components/schemas/WSPingMessage"
+            examples:
+              user_message:
+                summary: User sends message to AI
+                value:
+                  type: "message"
+                  content: "What should I eat for breakfast to support my weight loss goals?"
+              ping:
+                summary: Keep-alive ping
+                value:
+                  type: "ping"
+
+  /api/v1/consultations/{id}/complete:
+    post:
+      summary: Complete a consultation
+      description: Mark an active consultation as completed
+      tags: [Consultations]
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Consultation ID
+      responses:
+        "200":
+          description: Consultation completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ConsultationResponse"
+        "400":
+          description: Invalid request (e.g., already completed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - Not consultation owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Consultation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

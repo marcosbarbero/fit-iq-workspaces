@@ -1,0 +1,1355 @@
+openapi: 3.0.3
+info:
+  title: FitIQ Goals API
+  version: 0.34.0
+  description: >
+    Goals API for FitIQ Backend - Goal setting, tracking, and AI-powered suggestions.
+
+    Features:
+    - Goal CRUD operations (create, read, update, delete)
+    - Multiple goal types: weight, activity, nutrition, custom
+    - Recurring goals: daily, weekly, monthly patterns
+    - Goal instance tracking for recurring goals
+    - Progress updates and completion tracking
+    - AI-powered goal suggestions based on user wellness data
+    - AI-generated tips for achieving goals
+    - Activity logging for goals
+
+    Security: JWT bearer token + X-API-Key required for all endpoints.
+
+servers:
+  - url: https://fit-iq-backend.fly.dev
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Goals
+    description: Goal management and tracking
+  - name: Goals AI
+    description: AI-powered goal features
+
+paths:
+  # ========== Goals CRUD ==========
+  /api/v1/goals:
+    post:
+      summary: Create a new goal
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoalRequest"
+            examples:
+              oneTimeGoal:
+                summary: One-time goal
+                value:
+                  goal_type: "weight"
+                  title: "Lose 10 kg"
+                  description: "Weight loss goal for summer"
+                  target_value: 10.0
+                  target_unit: "kg"
+                  start_date: "2024-01-01"
+                  target_date: "2024-06-01"
+              dailyRecurringGoal:
+                summary: Daily recurring goal
+                value:
+                  goal_type: "activity"
+                  title: "Walk 10,000 steps daily"
+                  description: "Daily walking goal"
+                  target_value: 10000
+                  target_unit: "steps"
+                  start_date: "2024-01-01"
+                  is_recurring: true
+                  recurrence_pattern: "daily"
+              weeklyRecurringGoal:
+                summary: Weekly recurring goal (specific days)
+                value:
+                  goal_type: "activity"
+                  title: "Strength training 3x per week"
+                  target_value: 1
+                  target_unit: "workout"
+                  start_date: "2024-01-01"
+                  is_recurring: true
+                  recurrence_pattern: "weekly"
+                  recurrence_days: [1, 3, 5]
+                  recurrence_end_date: "2024-12-31"
+      responses:
+        "201":
+          description: Goal created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: List user goals with optional filters
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [weight, activity, nutrition, custom]
+          description: Filter by goal type
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, completed, abandoned]
+          description: Filter by goal status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+        - name: include_statistics
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include detailed statistics for each goal
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ListGoalsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}:
+    get:
+      summary: Get a specific goal by ID
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+        - name: include_statistics
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include detailed statistics
+      responses:
+        "200":
+          description: Goal details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: Update a goal
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGoalRequest"
+      responses:
+        "200":
+          description: Goal updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Delete a goal
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      responses:
+        "204":
+          description: Goal deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}/progress:
+    patch:
+      summary: Update goal progress
+      description: Manually update the current value for a goal
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_value
+              properties:
+                current_value:
+                  type: number
+                  format: float
+                  description: New current value
+                  example: 5.5
+      responses:
+        "200":
+          description: Progress updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}/complete:
+    post:
+      summary: Mark goal as completed
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      responses:
+        "200":
+          description: Goal marked as completed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}/abandon:
+    post:
+      summary: Mark goal as abandoned
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      responses:
+        "200":
+          description: Goal marked as abandoned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ========== Recurring Goals ==========
+  /api/v1/goals/{id}/today:
+    get:
+      summary: Get or create today's instance for a recurring goal
+      description: |
+        For recurring goals, retrieve today's instance. If it doesn't exist yet,
+        it will be automatically created with initial values.
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Recurring goal ID
+      responses:
+        "200":
+          description: Today's goal instance
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalInstanceResponse"
+        "400":
+          description: Goal is not recurring
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}/history:
+    get:
+      summary: Get history of goal instances
+      description: Retrieve historical instances for a recurring goal with pagination
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Recurring goal ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+          description: Number of results per page
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date filter (YYYY-MM-DD)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date filter (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Goal instance history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalInstanceHistoryResponse"
+        "400":
+          description: Goal is not recurring
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/instances/{instance_id}/progress:
+    put:
+      summary: Update progress for a goal instance
+      description: Update the current value for a specific recurring goal instance
+      tags: [Goals]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: instance_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal instance ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_value
+              properties:
+                current_value:
+                  type: number
+                  format: float
+                  description: New current value
+                  example: 8500
+      responses:
+        "200":
+          description: Instance progress updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalInstanceResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Instance not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ========== AI-Powered Features ==========
+  /api/v1/goals/suggestions:
+    post:
+      summary: Get AI-powered goal suggestions
+      description: |
+        Generate personalized goal suggestions based on your wellness data including:
+        - Physical profile (age, gender, weight, BMI, body fat, resting heart rate)
+        - Activity metrics (workout frequency, steps average)
+        - Nutrition summary (calories, macros)
+        - Dietary preferences and restrictions
+        - Active goals (to avoid duplicates)
+
+        The AI analyzes your data and suggests 3-5 achievable, SMART goals tailored to your
+        current fitness level and preferences. Each suggestion includes:
+        - Goal type (weight, activity, nutrition, custom)
+        - Target value and unit
+        - Rationale explaining why this goal makes sense for you
+        - Estimated duration (in days)
+        - Difficulty rating (1-5 scale)
+
+        Note: This endpoint may take 10-30 seconds to complete as it fetches your wellness
+        data and generates personalized AI recommendations.
+      tags: [Goals AI]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      responses:
+        "200":
+          description: Goal suggestions generated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalSuggestionsResponse"
+              example:
+                success: true
+                data:
+                  suggestions:
+                    - title: "Walk 10,000 steps daily"
+                      description: "Based on your current average of 6,500 steps per day, gradually increasing to 10,000 steps will boost cardiovascular health, aid weight management, and improve overall fitness. This goal is achievable within 3 months with consistent effort."
+                      goal_type: "activity"
+                      target_value: 10000
+                      target_unit: "steps"
+                      rationale: "Your current step average is 6,500/day. Research shows 10,000 steps significantly improves cardiovascular health. Given your age (32) and activity level, this is an achievable next step."
+                      estimated_duration: 90
+                      difficulty: 3
+                    - title: "Increase protein intake to 120g daily"
+                      description: "Your current protein intake averages 85g per day. Increasing to 120g will support muscle recovery and growth, especially given your 3x weekly strength training routine. This aligns with the 1.6g per kg body weight recommendation for active individuals."
+                      goal_type: "nutrition"
+                      target_value: 120
+                      target_unit: "g"
+                      rationale: "With your current weight (75kg) and strength training 3x/week, 120g protein (1.6g/kg) is optimal for muscle building and recovery."
+                      estimated_duration: 60
+                      difficulty: 2
+                    - title: "Reduce body fat percentage to 18%"
+                      description: "Starting from your current 22% body fat, reducing to 18% will improve muscle definition, metabolic health, and athletic performance. Combined with your workout routine and a slight calorie deficit, this is achievable in 4-5 months."
+                      goal_type: "weight"
+                      target_value: 18
+                      target_unit: "%"
+                      rationale: "At 22% body fat with regular training, reducing to 18% is a healthy, sustainable target that improves health markers without being overly restrictive."
+                      estimated_duration: 150
+                      difficulty: 4
+                  count: 3
+                error: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to generate suggestions (AI service error)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}/tips:
+    get:
+      summary: Get AI-powered tips for achieving a goal
+      description: |
+        Get personalized, actionable tips for achieving a specific goal based on:
+        - Goal details (type, target, timeline, current progress)
+        - Your wellness context (activity level, nutrition habits, preferences)
+        - Goal-specific strategies (e.g., nutrition tips for nutrition goals)
+
+        Returns 5-7 specific, actionable tips including:
+        - Quick wins (easy immediate actions)
+        - Habit-building strategies
+        - Progress tracking suggestions
+        - Motivation techniques
+        - Obstacle management
+
+        Tips are tailored to your current capabilities and lifestyle.
+      tags: [Goals AI]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      responses:
+        "200":
+          description: Tips generated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalTipsResponse"
+              example:
+                success: true
+                data:
+                  goal_id: "550e8400-e29b-41d4-a716-446655440000"
+                  tips:
+                    - "Start by adding 1,000 extra steps per week. Park farther away, take stairs, or add a 10-minute walk after meals."
+                    - "Track your daily steps in the app to identify patterns. Most people have lower step counts on weekends - plan active activities accordingly."
+                    - "Join a walking buddy or group for accountability and social motivation. Studies show social support increases goal adherence by 65%."
+                    - "Set phone reminders every 2 hours during work to take a 5-minute walking break. This prevents prolonged sitting and adds 2,000+ steps daily."
+                    - "Celebrate weekly milestones! When you hit your target 5 days in a row, reward yourself (non-food rewards work best)."
+                    - "On low-motivation days, commit to just 5,000 steps. Starting small beats not starting at all, and you'll often exceed the minimum."
+                    - "Prepare for obstacles: bad weather (indoor mall walking), busy days (walk during calls), low energy (evening walks after dinner)."
+                  count: 7
+                error: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (goal doesn't belong to user)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to generate tips (AI service error)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/goals/{id}/activities:
+    post:
+      summary: Log an activity for a goal
+      description: |
+        Log an activity related to a goal. Activities help track actions taken toward
+        achieving the goal and provide data for AI-powered insights and tips.
+
+        Activity types vary by goal type:
+        - Weight goals: weigh_in, meal_logged, workout_completed
+        - Activity goals: workout_completed, steps_logged, activity_tracked
+        - Nutrition goals: meal_logged, meal_prep, grocery_shopping
+        - Custom goals: custom_action, milestone_reached, habit_tracked
+      tags: [Goals AI]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogActivityRequest"
+            examples:
+              workoutCompleted:
+                summary: Workout completed
+                value:
+                  activity_type: "workout_completed"
+                  value: 1
+                  notes: "30 min strength training - chest and triceps"
+              mealLogged:
+                summary: Meal logged
+                value:
+                  activity_type: "meal_logged"
+                  value: 1
+                  notes: "High protein lunch - grilled chicken salad"
+              stepsLogged:
+                summary: Steps logged
+                value:
+                  activity_type: "steps_logged"
+                  value: 12500
+                  notes: "Exceeded daily goal!"
+      responses:
+        "201":
+          description: Activity logged successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/GoalActivityResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (goal doesn't belong to user)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: Fetch activities for a goal
+      description: Retrieve logged activities for a goal with optional filtering and pagination
+      tags: [Goals AI]
+      security:
+        - ApiKey: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Goal ID
+        - name: activity_type
+          in: query
+          schema:
+            type: string
+          description: Filter by activity type
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset
+      responses:
+        "200":
+          description: List of goal activities
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/StandardResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ListGoalActivitiesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (goal doesn't belong to user)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          nullable: true
+        error:
+          type: object
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          type: object
+          nullable: true
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Invalid request"
+
+    # ========== Request Schemas ==========
+    CreateGoalRequest:
+      type: object
+      required:
+        - goal_type
+        - title
+        - target_value
+        - target_unit
+        - start_date
+      properties:
+        goal_type:
+          type: string
+          enum: [weight, activity, nutrition, custom]
+          description: Type of goal
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Goal title
+        description:
+          type: string
+          maxLength: 1000
+          description: Optional goal description
+          nullable: true
+        target_value:
+          type: number
+          format: float
+          minimum: 0
+          description: Target value to achieve
+        target_unit:
+          type: string
+          maxLength: 50
+          description: Unit of measurement (kg, steps, minutes, servings, etc.)
+        start_date:
+          type: string
+          format: date
+          description: Goal start date (YYYY-MM-DD)
+        target_date:
+          type: string
+          format: date
+          description: Optional target completion date
+          nullable: true
+        is_recurring:
+          type: boolean
+          default: false
+          description: Whether goal recurs (daily, weekly, monthly)
+        recurrence_pattern:
+          type: string
+          enum: [daily, weekly, monthly]
+          description: Recurrence pattern (required if is_recurring is true)
+          nullable: true
+        recurrence_days:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description: Days of week for weekly recurrence (0=Sunday, 6=Saturday)
+          nullable: true
+        recurrence_end_date:
+          type: string
+          format: date
+          description: Optional end date for recurring goal
+          nullable: true
+
+    UpdateGoalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        target_value:
+          type: number
+          format: float
+          minimum: 0
+        target_date:
+          type: string
+          format: date
+          nullable: true
+
+    LogActivityRequest:
+      type: object
+      required:
+        - activity_type
+        - value
+      properties:
+        activity_type:
+          type: string
+          description: Type of activity (workout_completed, meal_logged, steps_logged, etc.)
+        value:
+          type: number
+          format: float
+          description: Activity value (quantity, duration, count, etc.)
+        notes:
+          type: string
+          maxLength: 500
+          description: Optional notes about the activity
+          nullable: true
+
+    # ========== Response Schemas ==========
+    GoalResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        goal_type:
+          type: string
+          enum: [weight, activity, nutrition, custom]
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        target_value:
+          type: number
+          format: float
+        target_unit:
+          type: string
+        current_value:
+          type: number
+          format: float
+        start_date:
+          type: string
+          format: date-time
+        target_date:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        is_recurring:
+          type: boolean
+        recurrence_pattern:
+          type: string
+          enum: [daily, weekly, monthly]
+          nullable: true
+        recurrence_days:
+          type: array
+          items:
+            type: integer
+          nullable: true
+        recurrence_end_date:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        statistics:
+          $ref: "#/components/schemas/GoalStatistics"
+          nullable: true
+          description: Detailed statistics (only included if include_statistics=true)
+
+    GoalStatistics:
+      type: object
+      properties:
+        progress_percentage:
+          type: number
+          format: float
+          description: Progress toward goal (0-100)
+        days_active:
+          type: integer
+          description: Number of days goal has been active
+        days_remaining:
+          type: integer
+          nullable: true
+          description: Days until target date (null if no target date)
+        average_daily_progress:
+          type: number
+          format: float
+          description: Average progress per day
+        current_streak:
+          type: integer
+          description: Current consecutive days meeting target
+        longest_streak:
+          type: integer
+          description: Longest consecutive days meeting target
+        total_updates:
+          type: integer
+          description: Total number of progress updates
+        completion_rate:
+          type: number
+          format: float
+          description: Percentage of days target was met (for recurring goals)
+        trend:
+          type: string
+          enum: [improving, stable, declining]
+          description: Recent progress trend
+        best_day:
+          type: string
+          description: Day of week with best performance
+          nullable: true
+        estimated_completion_date:
+          type: string
+          format: date
+          nullable: true
+          description: Projected completion date based on current pace
+
+    ListGoalsResponse:
+      type: object
+      properties:
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalResponse"
+        total:
+          type: integer
+          description: Total number of goals matching filters
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    GoalInstanceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        instance_date:
+          type: string
+          format: date
+        target_value:
+          type: number
+          format: float
+        current_value:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, in_progress, completed, missed]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GoalInstanceHistoryResponse:
+      type: object
+      properties:
+        goal_id:
+          type: string
+          format: uuid
+        instances:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalInstanceResponse"
+        summary:
+          type: object
+          properties:
+            total_instances:
+              type: integer
+            completed_count:
+              type: integer
+            missed_count:
+              type: integer
+            completion_rate:
+              type: number
+              format: float
+              description: Percentage of completed instances
+            current_streak:
+              type: integer
+            longest_streak:
+              type: integer
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    GoalSuggestionsResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalSuggestion"
+        count:
+          type: integer
+          description: Number of suggestions returned
+
+    GoalSuggestion:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 50
+          description: Suggested goal title
+        description:
+          type: string
+          description: Detailed description (100-200 words)
+        goal_type:
+          type: string
+          enum: [weight, activity, nutrition, custom]
+        target_value:
+          type: number
+          format: float
+        target_unit:
+          type: string
+        rationale:
+          type: string
+          description: Why this goal makes sense (50-100 words)
+        estimated_duration:
+          type: integer
+          description: Estimated days to achieve goal
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Difficulty rating (1=easy, 5=very challenging)
+
+    GoalTipsResponse:
+      type: object
+      properties:
+        goal_id:
+          type: string
+          format: uuid
+        tips:
+          type: array
+          items:
+            type: string
+          description: List of 5-7 actionable tips
+        count:
+          type: integer
+          description: Number of tips returned
+
+    GoalActivityResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        activity_type:
+          type: string
+        value:
+          type: number
+          format: float
+        notes:
+          type: string
+          nullable: true
+        logged_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    ListGoalActivitiesResponse:
+      type: object
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalActivityResponse"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer

@@ -1,0 +1,976 @@
+openapi: 3.0.3
+info:
+  title: FitIQ AI Insights API
+  description: |
+    AI-powered wellness insights API for FitIQ platform.
+
+    ## Overview
+    The Insights API provides automated, personalized wellness insights based on user data.
+    Insights are generated using AI and delivered to users at regular intervals (daily, weekly) or on-demand.
+
+    ## Data Source Endpoints
+    - **Wellness Endpoint** (ACTIVE): Uses mood entries, journal entries, and goals only
+    - **Fitness Endpoint** (FUTURE): Will include workout and activity data
+    - **Nutrition Endpoint** (FUTURE): Will include meal and nutrition data
+    - **Holistic Endpoint** (FUTURE): Will combine all data sources
+
+    ## Features
+    - **Daily Insights**: End-of-day summaries with actionable tips
+    - **Weekly Insights**: Comprehensive weekly analysis and patterns
+    - **Milestone Insights**: Celebration of achievements
+    - **Pattern Insights**: Discovery of correlations and trends
+
+    ## Authentication
+    All endpoints require both:
+    - **API Key** (via `X-API-Key` header)
+    - **JWT Token** (via `Authorization: Bearer` header)
+
+    ## Data Encryption
+    Sensitive fields (title, content, summary, suggestions) are encrypted at rest.
+    API responses contain decrypted data ready for display.
+
+    ## Rate Limiting
+    Standard rate limits apply. See main API documentation.
+
+  version: 0.37.0
+  contact:
+    name: FitIQ API Support
+    email: api@fitiq.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.fitiq.com
+    description: Production server
+  - url: https://staging-api.fitiq.com
+    description: Staging server
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - ApiKeyAuth: []
+    BearerAuth: []
+
+tags:
+  - name: Insights
+    description: AI-powered wellness insights
+
+paths:
+  /api/v1/insights:
+    get:
+      tags:
+        - Insights
+      summary: List insights
+      description: |
+        Retrieve a list of insights for the authenticated user with optional filtering, sorting, and pagination.
+
+        By default, returns non-archived insights sorted by creation date (newest first).
+      operationId: listInsights
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: insight_type
+          in: query
+          description: Filter by insight type
+          required: false
+          schema:
+            type: string
+            enum: [daily, weekly, milestone, pattern]
+          example: daily
+
+        - name: read_status
+          in: query
+          description: Filter by read status (true = read only, false = unread only, omit = all)
+          required: false
+          schema:
+            type: boolean
+          example: false
+
+        - name: favorites_only
+          in: query
+          description: Show only favorite insights
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: true
+
+        - name: archived_status
+          in: query
+          description: Filter by archived status (true = archived only, false = non-archived only, omit = non-archived)
+          required: false
+          schema:
+            type: boolean
+          example: false
+
+        - name: period_from
+          in: query
+          description: Filter insights covering periods starting from this date (inclusive)
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+
+        - name: period_to
+          in: query
+          description: Filter insights covering periods up to this date (inclusive)
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-31"
+
+        - name: limit
+          in: query
+          description: Maximum number of insights to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+
+        - name: offset
+          in: query
+          description: Number of insights to skip (for pagination)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+
+        - name: sort_by
+          in: query
+          description: Field to sort by
+          required: false
+          schema:
+            type: string
+            enum: [created_at, updated_at, period_start]
+            default: created_at
+          example: created_at
+
+        - name: sort_order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          example: desc
+
+      responses:
+        "200":
+          description: Insights retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      insights:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Insight"
+                      total:
+                        type: integer
+                        description: Total number of insights matching the filter
+                        example: 42
+                      limit:
+                        type: integer
+                        description: Number of items per page
+                        example: 20
+                      offset:
+                        type: integer
+                        description: Number of items to skip
+                        example: 0
+                      has_more:
+                        type: boolean
+                        description: Whether more results are available
+                        example: false
+                      total_pages:
+                        type: integer
+                        description: Total number of pages available
+                        example: 3
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/unread/count:
+    get:
+      tags:
+        - Insights
+      summary: Count unread insights
+      description: Get the count of unread insights for the authenticated user
+      operationId: countUnreadInsights
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+
+      responses:
+        "200":
+          description: Unread count retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      count:
+                        type: integer
+                        description: Number of unread insights
+                        example: 5
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/generate/wellness:
+    post:
+      tags:
+        - Insights
+      summary: Generate wellness insight (recommended)
+      description: |
+        Generate an AI-powered insight using ONLY wellness data sources:
+        - Mood entries (emotional state tracking)
+        - Journal entries (personal reflections)
+        - Wellness goals (mental health objectives)
+
+        This endpoint is recommended for current production use as it focuses on
+        available wellness features. Does NOT include workout or nutrition data.
+
+        All sensitive fields (title, content, summary, suggestions) are automatically
+        encrypted at rest using AES-256-GCM encryption.
+      operationId: generateWellnessInsight
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+
+      requestBody:
+        description: Insight generation request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - insight_type
+              properties:
+                insight_type:
+                  type: string
+                  enum: [daily, weekly, milestone, pattern]
+                  description: |
+                    Type of wellness insight to generate:
+                    - daily: Today's emotional summary (auto period: today 00:00-23:59 UTC)
+                    - weekly: Last 7 days wellness analysis
+                    - milestone: Achievement celebration (last 30 days)
+                    - pattern: Emotional/behavioral correlation discovery (last 14 days)
+                  example: daily
+                period_start:
+                  type: string
+                  format: date-time
+                  description: Custom period start (ISO 8601 with timezone). Optional - calculated automatically if omitted.
+                  example: "2025-01-30T00:00:00Z"
+                period_end:
+                  type: string
+                  format: date-time
+                  description: Custom period end (ISO 8601 with timezone). Optional - calculated automatically if omitted.
+                  example: "2025-01-30T23:59:59Z"
+            examples:
+              DailyWellness:
+                summary: Generate daily wellness insight (auto period)
+                value:
+                  insight_type: daily
+              WeeklyWellness:
+                summary: Generate weekly wellness insight (auto period)
+                value:
+                  insight_type: weekly
+              CustomPeriodPattern:
+                summary: Generate wellness pattern with custom period
+                value:
+                  insight_type: pattern
+                  period_start: "2025-01-15T00:00:00Z"
+                  period_end: "2025-01-30T23:59:59Z"
+      responses:
+        "201":
+          description: Wellness insight generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Insight"
+              examples:
+                DailyWellnessInsight:
+                  summary: Daily wellness insight generated
+                  value:
+                    data:
+                      id: "550e8400-e29b-41d4-a716-446655440000"
+                      user_id: "123e4567-e89b-12d3-a456-426614174000"
+                      insight_type: "daily"
+                      title: "Embracing Self-Awareness Today"
+                      summary: "You checked in with your emotions and reflected on your day - excellent self-care!"
+                      content: "Today you showed great emotional awareness by logging your mood and taking time to journal. This kind of intentional self-reflection is a powerful tool for mental well-being. Research shows that people who regularly track their emotional state experience better emotional regulation and overall life satisfaction. Keep nurturing this practice - even small moments of self-awareness compound into lasting positive change."
+                      period_start: "2025-01-30T00:00:00Z"
+                      period_end: "2025-01-30T23:59:59Z"
+                      metrics:
+                        mood_entries_count: 2
+                        journal_entries_count: 1
+                        goals_active: 2
+                        goals_completed: 0
+                      suggestions:
+                        - "Try evening journaling to process today's emotions"
+                        - "Set a gentle reminder to check in with your mood tomorrow"
+                        - "Celebrate this moment of self-care - you showed up for yourself today"
+                      is_read: false
+                      is_favorite: false
+                      is_archived: false
+                      created_at: "2025-01-30T18:45:00Z"
+                      updated_at: "2025-01-30T18:45:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/generate:
+    post:
+      tags:
+        - Insights
+      summary: Generate new insight
+      description: |
+        Manually trigger AI-powered insight generation for the authenticated user.
+        If period_start and period_end are omitted, the period is calculated automatically based on insight_type.
+      operationId: generateInsight
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - insight_type
+              properties:
+                insight_type:
+                  type: string
+                  enum: [daily, weekly, milestone, pattern]
+                  description: |
+                    Type of insight to generate:
+                    - daily: Today's summary (auto period: today 00:00-23:59 UTC)
+                    - weekly: Last 7 days analysis
+                    - milestone: Achievement celebration (last 30 days)
+                    - pattern: Correlation discovery (last 14 days)
+                  example: daily
+                period_start:
+                  type: string
+                  format: date-time
+                  description: Custom period start (ISO 8601 with timezone). Optional - calculated automatically if omitted.
+                  example: "2025-01-30T00:00:00Z"
+                period_end:
+                  type: string
+                  format: date-time
+                  description: Custom period end (ISO 8601 with timezone). Optional - calculated automatically if omitted.
+                  example: "2025-01-30T23:59:59Z"
+            examples:
+              DailyInsight:
+                summary: Generate daily insight (auto period)
+                value:
+                  insight_type: daily
+              WeeklyInsight:
+                summary: Generate weekly insight (auto period)
+                value:
+                  insight_type: weekly
+              CustomPeriod:
+                summary: Generate insight with custom period
+                value:
+                  insight_type: pattern
+                  period_start: "2025-01-15T00:00:00Z"
+                  period_end: "2025-01-30T23:59:59Z"
+      responses:
+        "201":
+          description: Insight generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Insight"
+              examples:
+                DailyInsightGenerated:
+                  summary: Daily insight generated
+                  value:
+                    data:
+                      id: "550e8400-e29b-41d4-a716-446655440000"
+                      user_id: "123e4567-e89b-12d3-a456-426614174000"
+                      insight_type: "daily"
+                      title: "Great Progress Today!"
+                      summary: "You logged 3 meals and completed a workout - excellent consistency!"
+                      content: "Today was a solid day for your wellness journey. You maintained good nutrition habits by logging 3 balanced meals, and you completed your planned workout session. This kind of consistency is key to reaching your goals. Keep up the momentum!"
+                      period_start: "2025-01-30T00:00:00Z"
+                      period_end: "2025-01-30T23:59:59Z"
+                      metrics:
+                        mood_entries_count: 2
+                        journal_entries_count: 1
+                        goals_active: 3
+                        goals_completed: 0
+                      suggestions:
+                        - "Try adding a vegetable to your next meal"
+                        - "Aim for 8 hours of sleep tonight"
+                        - "Log your mood in the evening to track patterns"
+                      is_read: false
+                      is_favorite: false
+                      is_archived: false
+                      created_at: "2025-01-30T18:45:00Z"
+                      updated_at: "2025-01-30T18:45:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/{id}/read:
+    post:
+      tags:
+        - Insights
+      summary: Mark insight as read
+      description: Mark a specific insight as read by the authenticated user
+      operationId: markInsightRead
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Insight ID (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+      responses:
+        "200":
+          description: Insight marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Insight marked as read"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/{id}/favorite:
+    post:
+      tags:
+        - Insights
+      summary: Toggle favorite status
+      description: Toggle the favorite status of a specific insight (favorite ↔ not favorite)
+      operationId: toggleInsightFavorite
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Insight ID (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+      responses:
+        "200":
+          description: Favorite status toggled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      is_favorite:
+                        type: boolean
+                        description: New favorite status after toggle
+                        example: true
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/{id}/archive:
+    post:
+      tags:
+        - Insights
+      summary: Archive insight
+      description: |
+        Archive a specific insight to remove it from the main view.
+        Archived insights can be retrieved using the archived_status filter.
+      operationId: archiveInsight
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Insight ID (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+      responses:
+        "200":
+          description: Insight archived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Insight archived"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/{id}/unarchive:
+    post:
+      tags:
+        - Insights
+      summary: Unarchive insight
+      description: Restore an archived insight back to the main view
+      operationId: unarchiveInsight
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Insight ID (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+      responses:
+        "200":
+          description: Insight unarchived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Insight unarchived"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/insights/{id}:
+    delete:
+      tags:
+        - Insights
+      summary: Delete insight
+      description: Permanently delete a specific insight
+      operationId: deleteInsight
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Insight ID (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+      responses:
+        "204":
+          description: Insight deleted successfully (no content)
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for client authentication
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user authentication
+
+  schemas:
+    Insight:
+      type: object
+      description: AI-generated wellness insight
+      required:
+        - id
+        - user_id
+        - insight_type
+        - title
+        - content
+        - summary
+        - is_read
+        - is_favorite
+        - is_archived
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the insight
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+        user_id:
+          type: string
+          format: uuid
+          description: User ID who owns this insight
+          example: "987fcdeb-51a2-43d7-b9e8-123456789abc"
+
+        insight_type:
+          type: string
+          enum: [daily, weekly, milestone, pattern]
+          description: |
+            Type of insight:
+            - `daily`: End-of-day summary and tips
+            - `weekly`: Weekly progress and patterns
+            - `milestone`: Achievement celebration
+            - `pattern`: Discovered correlation or trend
+          example: daily
+
+        title:
+          type: string
+          maxLength: 200
+          description: Brief, engaging title (decrypted from storage)
+          example: "Great Progress Today! 💪"
+
+        content:
+          type: string
+          maxLength: 10000
+          description: Detailed insight content in 2-3 paragraphs (decrypted from storage)
+          example: "You've made excellent progress today with your wellness goals. Your consistency with workouts and nutrition tracking shows dedication to your health journey.\n\nToday you completed a 45-minute strength training session and logged all your meals, staying within your calorie target. This kind of consistency is what leads to lasting results.\n\nFor tomorrow, consider adding 10 minutes of stretching after your workout to improve flexibility and reduce soreness."
+
+        summary:
+          type: string
+          maxLength: 500
+          description: One-sentence overview (decrypted from storage)
+          example: "Consistent workout and nutrition tracking today - keep up the great work!"
+
+        period_start:
+          type: string
+          format: date-time
+          nullable: true
+          description: Start of the period this insight covers (ISO 8601 with timezone)
+          example: "2024-01-15T00:00:00Z"
+
+        period_end:
+          type: string
+          format: date-time
+          nullable: true
+          description: End of the period this insight covers (ISO 8601 with timezone)
+          example: "2024-01-15T23:59:59Z"
+
+        metrics:
+          type: object
+          nullable: true
+          description: Quantitative metrics related to this insight
+          properties:
+            mood_entries_count:
+              type: integer
+              example: 3
+            journal_entries_count:
+              type: integer
+              example: 1
+            goals_active:
+              type: integer
+              example: 2
+            goals_completed:
+              type: integer
+              example: 0
+
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: Actionable suggestions (decrypted from storage)
+          example:
+            - "Add 10 minutes of stretching after workouts"
+            - "Try a new healthy recipe this week"
+            - "Increase water intake to 8 glasses daily"
+
+        is_read:
+          type: boolean
+          description: Whether the user has read this insight
+          example: false
+
+        is_favorite:
+          type: boolean
+          description: Whether the user has marked this as favorite
+          example: false
+
+        is_archived:
+          type: boolean
+          description: Whether this insight has been archived
+          example: false
+
+        created_at:
+          type: string
+          format: date-time
+          description: When the insight was created (ISO 8601 with timezone)
+          example: "2024-01-15T20:00:00Z"
+
+        updated_at:
+          type: string
+          format: date-time
+          description: When the insight was last updated (ISO 8601 with timezone)
+          example: "2024-01-15T20:00:00Z"
+
+    Error:
+      type: object
+      required:
+        - success
+        - data
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          type: object
+          nullable: true
+          example: null
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "Invalid request"
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            InvalidInsightType:
+              value:
+                success: false
+                data: null
+                error: "Invalid insight type"
+
+            InvalidPeriod:
+              value:
+                success: false
+                data: null
+                error: "Invalid period: end must be after start"
+            InvalidPagination:
+              value:
+                success: false
+                data: null
+                error: "Invalid pagination parameters"
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            data: null
+            error: "Invalid authentication"
+
+    Forbidden:
+      description: Forbidden - user does not have access to this resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            data: null
+            error: "Unauthorized access to insight"
+
+    NotFound:
+      description: Not found - resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            data: null
+            error: "Insight not found"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            data: null
+            error: "Internal server error"
+
+  examples:
+    DailyInsight:
+      value:
+        id: "123e4567-e89b-12d3-a456-426614174000"
+        user_id: "987fcdeb-51a2-43d7-b9e8-123456789abc"
+        insight_type: "daily"
+        title: "Great Progress Today! 💪"
+        content: "You've made excellent progress today with your wellness goals. Your consistency with workouts and nutrition tracking shows dedication to your health journey.\n\nToday you completed a 45-minute strength training session and logged all your meals, staying within your calorie target. This kind of consistency is what leads to lasting results.\n\nFor tomorrow, consider adding 10 minutes of stretching after your workout to improve flexibility and reduce soreness."
+        summary: "Consistent workout and nutrition tracking today - keep up the great work!"
+        period_start: "2024-01-15T00:00:00Z"
+        period_end: "2024-01-15T23:59:59Z"
+        metrics:
+          mood_entries_count: 3
+          journal_entries_count: 1
+          goals_active: 2
+          goals_completed: 0
+        suggestions:
+          - "Add 10 minutes of stretching after workouts"
+          - "Try a new healthy recipe this week"
+          - "Increase water intake to 8 glasses daily"
+        is_read: false
+        is_favorite: false
+        is_archived: false
+        created_at: "2024-01-15T20:00:00Z"
+        updated_at: "2024-01-15T20:00:00Z"
+
+    WeeklyInsight:
+      value:
+        id: "234f5678-f89c-23e4-b567-537725285111"
+        user_id: "987fcdeb-51a2-43d7-b9e8-123456789abc"
+        insight_type: "weekly"
+        title: "Weekly Wins: Consistency Pays Off! 🌟"
+        content: "This week showed remarkable consistency in your wellness journey. You completed 5 workouts, maintained your nutrition tracking, and hit 85% of your daily step goals. This level of dedication is impressive!\n\nKey patterns this week: Your energy levels were highest on days when you worked out in the morning. You also stayed more consistent with nutrition on weekdays versus weekends. Your active goals saw good progress, with your strength training goal advancing by 20%.\n\nFor next week, consider: (1) Try morning workouts on your off days to boost energy throughout the day, (2) Plan weekend meals in advance to maintain nutrition consistency, (3) Increase workout intensity gradually as your body adapts. Keep up the excellent work!"
+        summary: "Strong week with 5 workouts and consistent nutrition - energy highest with morning exercise!"
+        period_start: "2024-01-08T00:00:00Z"
+        period_end: "2024-01-14T23:59:59Z"
+        metrics:
+          mood_entries_count: 18
+          journal_entries_count: 5
+          goals_active: 3
+          goals_completed: 1
+        suggestions:
+          - "Try morning workouts to boost daily energy"
+          - "Plan weekend meals in advance"
+          - "Gradually increase workout intensity"
+        is_read: false
+        is_favorite: true
+        is_archived: false
+        created_at: "2024-01-14T20:00:00Z"
+        updated_at: "2024-01-14T20:00:00Z"
+
+    MilestoneInsight:
+      value:
+        id: "345g6789-g89d-34f5-c678-648836396222"
+        user_id: "987fcdeb-51a2-43d7-b9e8-123456789abc"
+        insight_type: "milestone"
+        title: "Milestone Achieved: 30 Days of Consistency! 🎉"
+        content: "Congratulations on reaching an incredible milestone - 30 consecutive days of tracking your wellness journey! This achievement reflects your commitment, discipline, and dedication to your health goals.\n\nOver the past month, you've logged 22 workouts, tracked nutrition daily, and maintained an active wellness routine. More importantly, you've built sustainable habits that will serve you for years to come. The consistency you've demonstrated is what separates short-term attempts from long-term success.\n\nAs you continue forward, remember that this milestone is not the end goal but a testament to your ability to show up for yourself every day. Keep building on this foundation!"
+        summary: "30 consecutive days of wellness tracking completed - a true testament to commitment!"
+        period_start: "2023-12-15T00:00:00Z"
+        period_end: "2024-01-14T23:59:59Z"
+        metrics:
+          mood_entries_count: 60
+          journal_entries_count: 15
+          goals_active: 2
+          goals_completed: 3
+        suggestions:
+          - "Set a new 60-day consistency goal"
+          - "Share your success with the community"
+          - "Reflect on what habits helped you succeed"
+        is_read: true
+        is_favorite: true
+        is_archived: false
+        created_at: "2024-01-14T20:05:00Z"
+        updated_at: "2024-01-15T08:30:00Z"

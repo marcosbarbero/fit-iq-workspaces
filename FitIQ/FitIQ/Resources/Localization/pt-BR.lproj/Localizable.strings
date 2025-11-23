@@ -1,0 +1,376 @@
+/*
+ * Localizable.strings (Portuguese - Brazilian / Português do Brasil)
+ * Health Restart - Fitness & Nutrition Health Companion
+ *
+ * Translation Notes:
+ * - Brazilian Portuguese variant
+ * - Using informal "você" form for consumer app
+ */
+
+// MARK: - Common Actions
+"common.save" = "Salvar";
+"common.cancel" = "Cancelar";
+"common.delete" = "Excluir";
+"common.done" = "Concluído";
+"common.edit" = "Editar";
+"common.add" = "Adicionar";
+"common.ok" = "OK";
+"common.skip" = "Pular";
+"common.clear" = "Limpar";
+"common.retry" = "Tentar Novamente";
+"common.logout" = "Sair";
+"common.continue" = "Continuar";
+
+// MARK: - Navigation / Tab Bar
+"navigation.summary" = "Resumo";
+"navigation.workouts" = "Exercícios";
+"navigation.nutrition" = "Nutrição";
+"navigation.plan" = "Plano";
+"navigation.coach" = "Treinador";
+"navigation.goals" = "Objetivos";
+"navigation.sleep" = "Sono";
+"navigation.profile" = "Perfil";
+
+// MARK: - Navigation Titles
+"navigation.title.daily_goals" = "Objetivos Diários";
+"navigation.title.long_term_goals" = "Objetivos de Longo Prazo";
+"navigation.title.new_goal" = "Novo Objetivo";
+"navigation.title.goal_details" = "Detalhes do Objetivo";
+"navigation.title.edit_profile" = "Editar Perfil";
+"navigation.title.my_profile" = "Meu Perfil";
+"navigation.title.measurements" = "Medições";
+"navigation.title.meal_plans" = "Planos de Refeição";
+"navigation.title.create_meal_plan" = "Criar Plano de Refeição";
+"navigation.title.edit_meal" = "Editar refeição";
+"navigation.title.edit_meal_group" = "Editar Grupo de Refeição";
+"navigation.title.morning_checkin" = "Check-in Matinal";
+"navigation.title.log_mood" = "Registrar Seu Humor";
+"navigation.title.my_plan_today" = "Meu Plano de Hoje";
+"navigation.title.customize_summary" = "Personalizar Resumo";
+"navigation.title.feed" = "Feed";
+"navigation.title.food_drink" = "Comida e Bebida 🍎💧";
+"navigation.title.new_long_term_goal" = "Novo Objetivo de Longo Prazo";
+
+// MARK: - Goals
+"goals.daily" = "Objetivos Diários";
+"goals.long_term" = "Objetivos de Longo Prazo";
+"goals.active" = "Objetivos Ativos";
+"goals.active_label" = "Objetivos Ativos:";
+"goals.active_goals" = "Objetivos Ativos";
+"goals.goal_count" = "%d objetivo(s)";
+"goals.active_goal_count" = "%d ativos";
+"goals.completed" = "Concluídos:";
+"goals.completed_on" = "Concluído em %@";
+"goals.add_goal" = "Adicionar Objetivo";
+"goals.status.active" = "Ativo";
+"goals.status.complete" = "Completo";
+"goals.status.completed" = "CONCLUÍDO";
+"goals.confidence" = "Confiança:";
+"goals.daily_progress" = "Progresso diário";
+"goals.ai_advice_daily" = "O conselho de IA é gerado diariamente para objetivos ativos";
+"goals.water" = "Água";
+"goals.steps" = "Passos";
+"goals.activity_hydration" = "Atividade e Hidratação";
+"goals.clear_goals" = "Limpar Objetivos";
+"goals.target" = "Meta";
+
+// MARK: - Plan (My Plan Today)
+"plan.my_plan_today" = "Meu Plano de Hoje";
+"plan.todays_progress" = "Progresso de Hoje";
+"plan.workout" = "Treino";
+"plan.nutrition" = "Nutrição";
+"plan.todays_goals" = "Objetivos de Hoje";
+"plan.mark_complete" = "Marcar como Completo";
+"plan.complete" = "Completar";
+"plan.swap_meal" = "Trocar Refeição";
+"plan.swap_format" = "Trocar %@";
+"plan.sets_reps_format" = "%d séries × %d reps";
+"plan.target_kcal_format" = "Meta: %d kcal";
+"plan.no_plan_today" = "Sem Plano para Hoje";
+"plan.generate_personalized" = "Gere seu plano diário personalizado baseado em seus objetivos";
+"plan.generate_plan" = "Gerar Plano";
+"plan.generate_your_plan" = "Gerar Seu Plano Diário";
+"plan.ai_will_create" = "O Treinador IA criará um plano personalizado baseado em seus objetivos e restrições.";
+"plan.active_goals" = "Objetivos Ativos:";
+
+// MARK: - Nutrition
+"nutrition.add_meal" = "Adicionar Refeição";
+"nutrition.edit_meal" = "Editar Refeição";
+"nutrition.delete_meal" = "Excluir Refeição";
+"nutrition.log_meal" = "Registrar Refeição";
+"nutrition.add_water" = "Adicionar Água";
+"nutrition.meal" = "Refeição";
+"nutrition.protein_abbr" = "P:";
+"nutrition.carbs_abbr" = "C:";
+"nutrition.fat_abbr" = "G:";
+"nutrition.calories" = "Calorias";
+"nutrition.protein" = "Proteína";
+"nutrition.carbs" = "Carboidratos";
+"nutrition.fat" = "Gordura";
+"nutrition.calories_kcal" = "Calorias (kcal)";
+"nutrition.protein_g" = "Proteína (g)";
+"nutrition.carbs_g" = "Carboidratos (g)";
+"nutrition.fat_g" = "Gordura (g)";
+"nutrition.calories_burned" = "Calorias Queimadas";
+"nutrition.caloric_deficit" = "Déficit calórico (kcal)";
+"nutrition.current_deficit" = "Déficit Atual";
+"nutrition.basal" = "Basal";
+"nutrition.quick_add_from_plans" = "Adicionar Rápido de Planos";
+"nutrition.snap_photo" = "Tirar uma Foto";
+"nutrition.enter_food_description" = "Digite a descrição da comida ou bebida...";
+"nutrition.choose_photo_source" = "Escolher Fonte da Foto";
+"nutrition.take_photo" = "Tirar Foto";
+"nutrition.choose_from_library" = "Escolher da Biblioteca";
+"nutrition.filter_by_meal_type" = "Filtrar por Tipo de Refeição";
+"nutrition.no_meal_plans_for" = "Nenhum Plano de Refeição para %@";
+"nutrition.create_meal_plan_prompt" = "Crie seu primeiro plano de refeições para adicionar refeições rapidamente";
+"nutrition.quick_add_meal_plan" = "Adicionar Plano de Refeição Rápido";
+"nutrition.food_and_drink" = "Comida e Bebida 🍎💧";
+"nutrition.kcal_logged" = "%d kcal registradas";
+"nutrition.kcal_value" = "%d kcal";
+
+// Meal Types
+"nutrition.meal_type.breakfast" = "Café da Manhã";
+"nutrition.meal_type.lunch" = "Almoço";
+"nutrition.meal_type.dinner" = "Jantar";
+"nutrition.meal_type.snack" = "Lanche";
+
+// Meal Plans
+"nutrition.meal_plans" = "Planos de Refeição";
+"nutrition.create_meal_plan" = "Crie um plano de refeição para adicionar refeições rapidamente";
+"nutrition.create_first_meal_plan" = "Crie seu primeiro plano de refeição para facilitar o registro de refeições";
+
+// Empty States
+"nutrition.empty.no_meals" = "Não foi possível carregar as refeições.";
+"nutrition.empty.no_data" = "Nenhum dado nutricional disponível";
+
+// MARK: - Workout
+"workout.add" = "Adicionar Exercício";
+"workout.edit" = "Editar Exercício";
+"workout.delete" = "Excluir Exercício";
+"workout.duration" = "Duração";
+"workout.type" = "Tipo";
+"workout.intensity" = "Intensidade";
+"workout.plans" = "Planos";
+"workout.pause" = "Pausar";
+"workout.resume" = "Retomar";
+"workout.finish" = "Finalizar";
+"workout.abandon" = "Abandonar";
+"workout.no_active_session" = "Nenhuma Sessão Ativa";
+"workout.active_workout" = "Treino Ativo";
+"workout.finish_workout" = "Finalizar Treino";
+"workout.abandon_workout" = "Abandonar Treino";
+"workout.finish_confirmation" = "Tem certeza de que deseja finalizar este treino?";
+"workout.abandon_warning" = "Isso descartará a sessão de treino atual.";
+"workout.progress" = "Progresso";
+
+// MARK: - Sleep
+"sleep.title" = "Sono";
+"sleep.duration" = "Duração";
+"sleep.quality" = "Qualidade";
+"sleep.average" = "Méd: %@";
+"sleep.no_data" = "Nenhum Dado de Sono Disponível";
+"sleep.no_data_message" = "Os dados de sono aparecerão aqui assim que estiverem disponíveis no HealthKit";
+"sleep.day" = "Dia";
+"sleep.trends" = "Tendências";
+"sleep.details" = "Detalhes";
+
+// MARK: - Profile
+"profile.title" = "Meu Perfil";
+"profile.name" = "Nome";
+"profile.new_user" = "Novo Usuário";
+"profile.body_info" = "Informações Corporais e Linha de Base";
+"profile.body_metrics" = "Métricas Corporais";
+"profile.bmi" = "IMC";
+"profile.biological_sex" = "Sexo Biológico";
+"profile.weight" = "Peso";
+"profile.height" = "Altura";
+"profile.body_mass" = "Massa Corporal";
+"profile.enter_weight" = "Digite Seu Peso";
+"profile.swipe_adjust" = "Deslize para cima/baixo para ajustar";
+"profile.swipe_increment" = "±100g por deslize";
+"profile.valid_weight" = "Peso válido";
+"profile.save_weight" = "Salvar Peso";
+"profile.basic_info" = "Informações Básicas";
+
+// Profile Settings
+"profile.settings.title" = "Configurações do App";
+"profile.settings.hide_weight" = "Ocultar Peso na Aba de Resumo";
+"profile.settings.units" = "Unidades";
+"profile.settings.unit_metric" = "Métrico";
+"profile.settings.unit_imperial" = "Imperial";
+"profile.settings.language" = "Idioma";
+"profile.settings.language.english" = "Inglês";
+"profile.settings.language.spanish" = "Espanhol";
+"profile.settings.language.portuguese" = "Português (Brasil)";
+"profile.settings.language.french" = "Francês";
+"profile.settings.language.german" = "Alemão";
+
+// Mood
+"profile.mood.log" = "Registrar Seu Humor";
+"profile.mood.title" = "Humor";
+"profile.mood.how_feeling" = "Como você está se sentindo agora?";
+"profile.mood.energy_level" = "Nível de Energia/Humor (1 = Baixo, 10 = Alto)";
+"profile.mood.optional_notes" = "Notas Opcionais";
+"profile.mood.enter_details" = "Digite detalhes sobre seu humor aqui, ou **mantenha pressionado o microfone** para ditar.";
+
+// Allergies
+"profile.allergies" = "Alergias (separadas por vírgula)";
+
+// Profile Placeholders & Actions
+"profile.bio_placeholder" = "Defina sua bio...";
+"profile.bio_optional" = "Bio (Opcional)";
+"profile.edit_metrics" = "Editar Métricas Pessoais";
+"profile.tap_to_set" = "Toque para Definir";
+"profile.height_example" = "ex. 175";
+
+// Biological Sex Options
+"profile.sex.female" = "Feminino";
+"profile.sex.male" = "Masculino";
+"profile.sex.other" = "Outro";
+"profile.sex.prefer_not_say" = "Prefiro não dizer";
+
+// MARK: - Coach
+"coach.title" = "Treinador";
+"coach.ai_insight" = "Insight do Treinador IA";
+"coach.ai_verified" = "Verificado por IA";
+"coach.connection_failed" = "Conexão falhou. Tentar última mensagem novamente?";
+"coach.set_first_goal" = "Defina Seu Primeiro Objetivo";
+"coach.define_goal_prompt" = "Vamos definir um objetivo claro para sua jornada fitness (por exemplo, perder peso ou melhorar o sono). Toque no botão '+' abaixo para começar.";
+"coach.define_goal" = "Definir Objetivo";
+"coach.your_current_goals" = "Seus Objetivos Atuais";
+"coach.feasibility" = "Viabilidade:";
+"coach.pending" = "Pendente";
+
+// MARK: - Summary / Dashboard
+"summary.title" = "Resumo";
+"summary.customize" = "Personalizar Resumo";
+"summary.tiles_instruction" = "Escolha quais blocos exibir e arraste para reordená-los";
+"summary.tiles_toggle" = "Ative ou desative os blocos e reordene-os arrastando.";
+"summary.tiles_title" = "Blocos";
+"summary.energy" = "Energia";
+"summary.score" = "Pontuação: %d";
+"summary.no_data" = "Sem dados";
+"summary.calories_burned" = "Calorias Queimadas";
+"summary.body_mass" = "Massa Corporal";
+"summary.no_sleep_data" = "Sem Dados de Sono Disponíveis";
+"summary.stable" = "Estável";
+"summary.tap_to_log" = "Toque para registrar";
+"summary.logged_format" = "Registrado: %@";
+"summary.of_format" = "de %@";
+"summary.percent_of_goal" = "%d%% da meta";
+"summary.add_water" = "Adicionar Água";
+"summary.total_asleep" = "Total Dormindo";
+"summary.active" = "Ativo";
+"summary.basal" = "Basal";
+"summary.target" = "Meta";
+"summary.deadline" = "Prazo";
+"summary.days_left_format" = "%d dia%@ restante%@";
+"summary.day_singular" = "";
+"summary.days_plural" = "s";
+"summary.due_today" = "Vence hoje!";
+"summary.overdue_format" = "Atrasado por %d dia%@";
+"summary.active_goals" = "Objetivos Ativos";
+"summary.goals_count_format" = "%d objetivo%@";
+"summary.set_nutrition_goals" = "Defina suas metas diárias de nutrição para acompanhar o progresso";
+"summary.kcal_label" = "Kcal";
+
+// MARK: - Alerts & Messages
+"alert.rest_day.title" = "Ótimo trabalho esta semana! 💪";
+"alert.rest_day.message" = "Considere fazer um dia de descanso hoje para otimizar a recuperação. Seu corpo precisa de tempo para se reconstruir e ficar mais forte!";
+"alert.milestone.title" = "Marco Alcançado! 🎉";
+"alert.milestone.message" = "Continue assim! Você está fazendo um progresso excelente em direção aos seus objetivos.";
+
+// MARK: - Empty States
+"empty.community_feed" = "Feed da comunidade - em breve";
+"empty.no_active_goals" = "Nenhum objetivo ativo";
+"empty.healthkit_permissions" = "Verifique as permissões do HealthKit ou aguarde um novo registro.";
+
+// MARK: - Media
+"media.take_photo" = "Tire uma foto da sua refeição";
+"media.choose_photo" = "Escolha uma foto da sua refeição da sua biblioteca";
+
+// MARK: - Onboarding
+"onboarding.save_continue" = "Salvar e Continuar";
+
+// MARK: - Units & Measurements
+"unit.kg" = "kg";
+"unit.cm" = "cm";
+"unit.kcal" = "kcal";
+"unit.g" = "g";
+"unit.hours" = "h";
+"unit.na" = "N/D";
+"unit.steps" = "passos";
+"unit.ml" = "ml";
+"unit.km" = "km";
+"unit.days" = "dias";
+
+// MARK: - Formatting Helpers
+"format.more_items" = "+%d mais";
+"format.na_with_unit" = "/ N/D %@";
+"format.value_with_unit" = "/ %@ %@";
+
+// MARK: - Date & Time
+"date.today" = "Hoje";
+"date.yesterday" = "Ontem";
+"date.tomorrow" = "Amanhã";
+"date.select_date" = "Selecionar Data";
+"date.day" = "Dia";
+"date.week" = "Semana";
+"date.month" = "Mês";
+
+// MARK: - Error Messages
+"error.generic" = "Ocorreu um erro";
+"error.loading" = "Erro ao Carregar Dados";
+"error.network" = "Erro de conexão de rede";
+"error.save_failed" = "Falha ao salvar";
+"error.delete_failed" = "Falha ao excluir";
+
+// MARK: - Workout Builder
+"workout.create_workout" = "Criar Treino";
+"workout.edit_plan" = "Editar Plano";
+"workout.duplicate_plan" = "Duplicar Plano";
+"workout.delete_plan" = "Excluir Plano";
+"workout.plan_title" = "Título do Plano";
+"workout.enter_plan_title" = "Digite o título do plano";
+"workout.add_exercise" = "Adicionar Exercício";
+"workout.exercise_name" = "Nome do Exercício";
+"workout.exercise_type" = "Tipo de Exercício";
+"workout.muscle_group" = "Grupo Muscular";
+"workout.target_sets" = "Séries Alvo";
+"workout.target_reps" = "Repetições Alvo";
+"workout.exercise_notes" = "Notas (opcional)";
+"workout.no_exercises" = "Sem Exercícios";
+"workout.no_exercises_message" = "Adicione exercícios a este plano de treino";
+"workout.save_plan" = "Salvar Plano";
+"workout.cancel" = "Cancelar";
+"workout.ai_generated" = "Gerado por IA";
+"workout.custom" = "Personalizado";
+"workout.trainer" = "Treinador";
+"workout.delete_confirmation" = "Tem certeza de que deseja excluir este plano de treino?";
+"workout.delete_exercise" = "Excluir Exercício";
+"workout.edit_exercise" = "Editar Exercício";
+"workout.exercise_details" = "Detalhes do Exercício";
+"workout.empty_title" = "Sem Planos de Treino";
+"workout.empty_message" = "Crie seu primeiro plano de treino personalizado";
+"workout.exercise_count" = "%d exercício(s)";
+
+// MARK: - Exercise Types
+"exercise_type.strength" = "Força";
+"exercise_type.cardio" = "Cardio";
+"exercise_type.flexibility" = "Flexibilidade";
+"exercise_type.balance" = "Equilíbrio";
+"exercise_type.other" = "Outro";
+
+// MARK: - Muscle Groups
+"muscle_group.chest" = "Peito";
+"muscle_group.back" = "Costas";
+"muscle_group.shoulders" = "Ombros";
+"muscle_group.biceps" = "Bíceps";
+"muscle_group.triceps" = "Tríceps";
+"muscle_group.arms" = "Braços";
+"muscle_group.legs" = "Pernas";
+"muscle_group.core" = "Core";
+"muscle_group.full_body" = "Corpo Inteiro";
+"muscle_group.cardio" = "Cardio";
+"muscle_group.other" = "Outro";
