@@ -4,6 +4,17 @@
 //
 //  Created by Marcos Barbero on 11/10/2025.
 //
+//  ⚠️ DEPRECATED: Legacy implementation - replaced by FitIQHealthKitBridge (Phase 2.2 Day 6)
+//  This file will be removed in Phase 2.2 Days 7-8 when use cases are migrated to FitIQCore types.
+//
+//  DO NOT ADD NEW FEATURES HERE!
+//  For new health data operations, use FitIQCore.HealthKitServiceProtocol directly.
+//
+//  Migration Path:
+//  - Day 6 (Current): FitIQHealthKitBridge wraps FitIQCore and implements this protocol
+//  - Day 7-8: Migrate use cases to use FitIQCore types directly
+//  - Day 9+: Remove this file completely
+//
 
 import Foundation
 import HealthKit
@@ -46,6 +57,12 @@ enum HealthKitError: Error, LocalizedError {
     }
 }
 
+/// ⚠️ DEPRECATED: Use FitIQHealthKitBridge instead (wraps FitIQCore infrastructure)
+@available(
+    *, deprecated,
+    message:
+        "Use FitIQHealthKitBridge with FitIQCore.HealthKitService instead. Will be removed in Phase 2.2 Days 7-8."
+)
 final class HealthKitAdapter: HealthRepositoryProtocol {
     private let store = HKHealthStore()
     private var observerQueries: [HKObjectType: HKObserverQuery] = [:]
