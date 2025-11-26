@@ -68,6 +68,9 @@ public enum HealthKitError: Error, Sendable {
     /// Query anchor is invalid or expired
     case invalidAnchor
 
+    /// Failed to query HealthKit characteristics (biologicalSex, dateOfBirth)
+    case characteristicQueryFailed(reason: String)
+
     // MARK: - Write Errors
 
     /// Failed to save health data to HealthKit
@@ -159,6 +162,9 @@ extension HealthKitError: LocalizedError {
         case .invalidAnchor:
             return "Query anchor is invalid or expired."
 
+        case .characteristicQueryFailed(let reason):
+            return "Failed to query HealthKit characteristic: \(reason)"
+
         // Write Errors
         case .saveFailed(let reason):
             if let reason = reason {
@@ -237,6 +243,9 @@ extension HealthKitError: LocalizedError {
 
         case .invalidAnchor:
             return "The query anchor is no longer valid. Try querying all data again."
+
+        case .characteristicQueryFailed:
+            return "Unable to access HealthKit characteristic data."
 
         case .storeUnavailable:
             return "The HealthKit store could not be initialized."
@@ -407,6 +416,8 @@ extension HealthKitError: Equatable {
             return lReason == rReason
         case (.invalidAnchor, .invalidAnchor):
             return true
+        case (.characteristicQueryFailed(let lReason), .characteristicQueryFailed(let rReason)):
+            return lReason == rReason
 
         // Write Errors
         case (.saveFailed(let lReason), .saveFailed(let rReason)):

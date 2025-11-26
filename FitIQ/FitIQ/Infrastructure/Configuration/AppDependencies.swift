@@ -794,7 +794,7 @@ class AppDependencies: ObservableObject {
         let backgroundSyncManager = BackgroundSyncManager(
             healthDataSyncService: healthDataSyncService,
             backgroundOperations: backgroundOperations,
-            // healthRepository removed - needs FitIQCore migration
+            healthKitService: healthKitService,
             processDailyHealthDataUseCase: processDailyHealthDataUseCase,
             processConsolidatedDailyHealthDataUseCase: processConsolidatedDailyHealthDataUseCase,
             authManager: authManager

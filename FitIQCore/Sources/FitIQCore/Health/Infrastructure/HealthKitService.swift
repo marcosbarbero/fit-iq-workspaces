@@ -365,6 +365,43 @@ public final class HealthKitService: HealthKitServiceProtocol, Sendable {
         }
     }
 
+    // MARK: - HealthKit Characteristics
+
+    public func getBiologicalSex() async throws -> String? {
+        do {
+            let biologicalSexObject = try healthStore.biologicalSex()
+            let hkSex = biologicalSexObject.biologicalSex
+
+            guard hkSex != .notSet else {
+                return nil
+            }
+
+            switch hkSex {
+            case .female:
+                return "female"
+            case .male:
+                return "male"
+            case .other:
+                return "other"
+            case .notSet:
+                return nil
+            @unknown default:
+                return nil
+            }
+        } catch {
+            throw HealthKitError.characteristicQueryFailed(reason: error.localizedDescription)
+        }
+    }
+
+    public func getDateOfBirth() async throws -> Date? {
+        do {
+            let dobComponents = try healthStore.dateOfBirthComponents()
+            return dobComponents.date
+        } catch {
+            throw HealthKitError.characteristicQueryFailed(reason: error.localizedDescription)
+        }
+    }
+
     // MARK: - Anchored Queries
 
     public func queryNew(

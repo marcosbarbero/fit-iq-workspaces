@@ -186,11 +186,8 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         // Check if date of birth matches
         if let profileDob = profile.dateOfBirth {
             do {
-                // Fetch date of birth directly from HKHealthStore
-                let healthStore = HKHealthStore()
-                if let dateOfBirthComponents = try? healthStore.dateOfBirthComponents(),
-                    let healthKitDob = Calendar.current.date(from: dateOfBirthComponents)
-                {
+                // Fetch date of birth using FitIQCore HealthKitService
+                if let healthKitDob = try await healthKitService.getDateOfBirth() {
                     let calendar = Calendar.current
                     let isSameDay = calendar.isDate(profileDob, inSameDayAs: healthKitDob)
 
@@ -200,10 +197,11 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
                         print(
                             "HealthKitProfileSyncService: ⚠️ Date of birth mismatch - Profile: \(profileDob), HealthKit: \(healthKitDob)"
                         )
-                        print(
-                            "HealthKitProfileSyncService: User should update date of birth in Health app if needed"
-                        )
                     }
+                } else {
+                    print(
+                        "HealthKitProfileSyncService: ⚠️ Could not fetch date of birth from HealthKit"
+                    )
                 }
             } catch {
                 print(
@@ -215,24 +213,19 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         // Check if biological sex matches
         if let profileSex = profile.biologicalSex {
             do {
-                // Fetch biological sex directly from HKHealthStore
-                let healthStore = HKHealthStore()
-                if let biologicalSexObject = try? healthStore.biologicalSex(),
-                    biologicalSexObject.biologicalSex != .notSet
-                {
-                    let healthKitSexString = hkBiologicalSexToString(
-                        biologicalSexObject.biologicalSex)
-
+                // Fetch biological sex using FitIQCore HealthKitService
+                if let healthKitSexString = try await healthKitService.getBiologicalSex() {
                     if profileSex.lowercased() == healthKitSexString.lowercased() {
                         print("HealthKitProfileSyncService: ✅ Biological sex matches HealthKit")
                     } else {
                         print(
                             "HealthKitProfileSyncService: ⚠️ Biological sex mismatch - Profile: \(profileSex), HealthKit: \(healthKitSexString)"
                         )
-                        print(
-                            "HealthKitProfileSyncService: User should update biological sex in Health app if needed"
-                        )
                     }
+                } else {
+                    print(
+                        "HealthKitProfileSyncService: ⚠️ Biological sex not set in HealthKit"
+                    )
                 }
             } catch {
                 print(

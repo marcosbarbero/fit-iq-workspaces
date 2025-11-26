@@ -312,6 +312,41 @@ public protocol HealthKitServiceProtocol: Sendable {
     /// - Throws: `HealthKitError` if the operation fails
     func disableBackgroundDelivery(for type: HealthDataType) async throws
 
+    // MARK: - HealthKit Characteristics
+
+    /// Retrieves the user's biological sex from HealthKit
+    ///
+    /// Returns the biological sex characteristic stored in HealthKit.
+    /// This is a characteristic (not a sample) and doesn't change over time.
+    ///
+    /// - Returns: Biological sex as a string ("male", "female", "other"), or nil if not set
+    /// - Throws: `HealthKitError` if the operation fails
+    ///
+    /// **Example:**
+    /// ```swift
+    /// if let sex = try await service.getBiologicalSex() {
+    ///     print("Biological sex: \(sex)")
+    /// }
+    /// ```
+    func getBiologicalSex() async throws -> String?
+
+    /// Retrieves the user's date of birth from HealthKit
+    ///
+    /// Returns the date of birth characteristic stored in HealthKit.
+    /// This is a characteristic (not a sample) and doesn't change over time.
+    ///
+    /// - Returns: Date of birth, or nil if not set
+    /// - Throws: `HealthKitError` if the operation fails
+    ///
+    /// **Example:**
+    /// ```swift
+    /// if let dob = try await service.getDateOfBirth() {
+    ///     let age = Calendar.current.dateComponents([.year], from: dob, to: Date()).year
+    ///     print("Age: \(age ?? 0)")
+    /// }
+    /// ```
+    func getDateOfBirth() async throws -> Date?
+
     // MARK: - Anchored Queries (Delta Updates)
 
     /// Queries new data since a previous query (delta/incremental update)

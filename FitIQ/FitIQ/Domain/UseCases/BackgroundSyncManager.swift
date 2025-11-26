@@ -6,15 +6,14 @@
 //
 
 import BackgroundTasks
+import FitIQCore
 import Foundation
-import HealthKit
 import UIKit  // Added for UIApplication.shared.applicationState
 
 public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     private let healthDataSyncService: HealthDataSyncOrchestrator
     private let backgroundOperations: BackgroundOperationsProtocol
-    // TODO: Migrate to FitIQCore observer patterns (Phase 6.5)
-    // private var healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let processDailyHealthDataUseCase: ProcessDailyHealthDataUseCaseProtocol
     private let processConsolidatedDailyHealthDataUseCase:
         ProcessConsolidatedDailyHealthDataUseCaseProtocol
@@ -28,10 +27,13 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     private var foregroundSyncDebounceTask: Task<Void, Never>?
     private let debounceInterval: TimeInterval = 1.0  // 1 second debounce window
 
+    // Task for managing HealthKit observations
+    private var observationTask: Task<Void, Never>?
+
     init(
         healthDataSyncService: HealthDataSyncOrchestrator,
         backgroundOperations: BackgroundOperationsProtocol,
-        // healthRepository: HealthRepositoryProtocol, // TODO: Remove after FitIQCore migration
+        healthKitService: HealthKitServiceProtocol,
         processDailyHealthDataUseCase: ProcessDailyHealthDataUseCaseProtocol,
         processConsolidatedDailyHealthDataUseCase:
             ProcessConsolidatedDailyHealthDataUseCaseProtocol,
@@ -39,7 +41,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     ) {
         self.healthDataSyncService = healthDataSyncService
         self.backgroundOperations = backgroundOperations
-        // self.healthRepository = healthRepository // TODO: Migrate to FitIQCore
+        self.healthKitService = healthKitService
         self.processDailyHealthDataUseCase = processDailyHealthDataUseCase
         self.processConsolidatedDailyHealthDataUseCase = processConsolidatedDailyHealthDataUseCase
         self.authManager = authManager
@@ -309,72 +311,55 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     /// Initiates observation of relevant HealthKit data types.
     /// Note: The initial comprehensive sync is now triggered by AppDependencies.
     public func startHealthKitObservations() async throws {
-        print("BackgroundSyncManager: Starting HealthKit observations...")
-        let quantityTypesToObserve: [HKQuantityTypeIdentifier] = [
-            .bodyMass, .height, .stepCount, .distanceWalkingRunning,
+        print("BackgroundSyncManager: Starting HealthKit observations using FitIQCore...")
+
+        // Cancel any existing observation task
+        observationTask?.cancel()
+
+        // Define metrics to observe using FitIQCore HealthDataType
+        let metricsToObserve: Set<FitIQCore.HealthDataType> = [
+            .bodyMass,
+            .height,
+            .stepCount,
+            .distanceWalkingRunning,
             .basalEnergyBurned,
             .activeEnergyBurned,
             .heartRate,
+            .sleepAnalysis,
         ]
 
-        await withTaskGroup(of: Void.self) { group in
-            // Observe quantity types
-            for typeIdentifier in quantityTypesToObserve {
-                group.addTask {
-                    guard let type = HKObjectType.quantityType(forIdentifier: typeIdentifier) else {
-                        print(
-                            "BackgroundSyncManager: Invalid quantity type identifier: \(typeIdentifier.rawValue)."
-                        )
-                        return
-                    }
-                    // TODO: Migrate to FitIQCore's observeChanges() pattern (Phase 6.5)
-                    /*
-                    do {
-                        try await self.healthRepository.startObserving(for: type)
-                    } catch let error as HealthKitError {
-                        print(
-                            "BackgroundSyncManager: Failed to start observing \(typeIdentifier.rawValue): \(error.localizedDescription)"
-                        )
-                    } catch {
-                        print(
-                            "BackgroundSyncManager: An unexpected error occurred while observing \(typeIdentifier.rawValue): \(error.localizedDescription)"
-                        )
-                    }
-                    */
-                    print(
-                        "BackgroundSyncManager: Observing \(typeIdentifier.rawValue) - temporarily disabled"
-                    )
+        // Start observing using FitIQCore's observeChanges() API
+        observationTask = Task {
+            do {
+                for await metric in healthKitService.observeChanges(for: metricsToObserve) {
+                    // Handle the metric change
+                    await handleHealthKitChange(metric)
                 }
-            }
-
-            // Observe sleep analysis (category type)
-            group.addTask {
-                guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
-                else {
-                    print("BackgroundSyncManager: Failed to get sleep analysis type.")
-                    return
-                }
-                // TODO: Migrate to FitIQCore's observeChanges() pattern (Phase 6.5)
-                /*
-                do {
-                    try await self.healthRepository.startObserving(for: sleepType)
-                    print("BackgroundSyncManager: ✅ Started observing sleep analysis")
-                } catch let error as HealthKitError {
-                    print(
-                        "BackgroundSyncManager: Failed to start observing sleep analysis: \(error.localizedDescription)"
-                    )
-                } catch {
-                    print(
-                        "BackgroundSyncManager: An unexpected error occurred while observing sleep analysis: \(error.localizedDescription)"
-                    )
-                }
-                */
-                print("BackgroundSyncManager: Sleep observation - temporarily disabled")
+            } catch {
+                print(
+                    "BackgroundSyncManager: Error in observation stream: \(error.localizedDescription)"
+                )
             }
         }
 
-        print(
-            "BackgroundSyncManager: HealthKit observations initiation complete (some might have been skipped if unauthorized)."
-        )
+        print("BackgroundSyncManager: ✅ HealthKit observations started successfully")
+    }
+
+    /// Handles a HealthKit data change detected by the observer
+    /// - Parameter metric: The changed health metric
+    private func handleHealthKitChange(_ metric: FitIQCore.HealthMetric) async {
+        print("BackgroundSyncManager: Detected change in \(metric.type) - value: \(metric.value)")
+
+        // Trigger sync via the healthDataSyncService
+        await healthDataSyncService.syncAllDailyActivityData()
+        print("BackgroundSyncManager: ✅ Sync completed for metric change")
+    }
+
+    /// Stops HealthKit observations
+    public func stopHealthKitObservations() {
+        print("BackgroundSyncManager: Stopping HealthKit observations...")
+        observationTask?.cancel()
+        observationTask = nil
+        print("BackgroundSyncManager: ✅ HealthKit observations stopped")
     }
 }

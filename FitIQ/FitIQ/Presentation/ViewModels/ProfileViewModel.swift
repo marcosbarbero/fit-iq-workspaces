@@ -330,34 +330,14 @@ class ProfileViewModel: ObservableObject {
         if biologicalSex.isEmpty {
             print("ProfileViewModel: Attempting to fetch biological sex from HealthKit...")
             do {
-                // Fetch biological sex directly from HKHealthStore
-                let healthStore = HKHealthStore()
-                let biologicalSexObject = try healthStore.biologicalSex()
-                let hkSex = biologicalSexObject.biologicalSex
-
-                if hkSex != .notSet {
-                    let sexString: String
-                    switch hkSex {
-                    case .female:
-                        sexString = "female"
-                    case .male:
-                        sexString = "male"
-                    case .other:
-                        sexString = "other"
-                    case .notSet:
-                        sexString = ""
-                    }
-
-                    if !sexString.isEmpty {
-                        self.biologicalSex = sexString
-                        print(
-                            "ProfileViewModel: ✅ Loaded biological sex from HealthKit: \(sexString)"
-                        )
-                    } else {
-                        print("ProfileViewModel: ⚠️ Biological sex not set in HealthKit")
-                    }
+                // Fetch biological sex using FitIQCore HealthKitService
+                if let sexString = try await healthKitService.getBiologicalSex() {
+                    self.biologicalSex = sexString
+                    print(
+                        "ProfileViewModel: ✅ Loaded biological sex from HealthKit: \(sexString)"
+                    )
                 } else {
-                    print("ProfileViewModel: ⚠️ No biological sex data available in HealthKit")
+                    print("ProfileViewModel: ⚠️ Biological sex not set in HealthKit")
                 }
             } catch {
                 print("ProfileViewModel: ❌ Could not load biological sex from HealthKit: \(error)")
@@ -542,31 +522,10 @@ class ProfileViewModel: ObservableObject {
 
         print("ProfileViewModel: ===== SYNC BIOLOGICAL SEX FROM HEALTHKIT =====")
 
-        // Fetch from HealthKit
+        // Fetch from HealthKit using FitIQCore HealthKitService
         do {
-            // Fetch biological sex directly from HKHealthStore
-            let healthStore = HKHealthStore()
-            let biologicalSexObject = try healthStore.biologicalSex()
-            let hkSex = biologicalSexObject.biologicalSex
-
-            guard hkSex != .notSet else {
+            guard let sexString = try await healthKitService.getBiologicalSex() else {
                 print("ProfileViewModel: Biological sex not set in HealthKit")
-                return
-            }
-
-            let sexString: String
-            switch hkSex {
-            case .female:
-                sexString = "female"
-            case .male:
-                sexString = "male"
-            case .other:
-                sexString = "other"
-            case .notSet:
-                print("ProfileViewModel: Biological sex not set in HealthKit")
-                return
-            @unknown default:
-                print("ProfileViewModel: Unknown biological sex value")
                 return
             }
 
