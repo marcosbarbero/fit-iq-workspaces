@@ -1,24 +1,25 @@
 // Domain/UseCases/SaveBodyMassUseCase.swift
+// Migrated to FitIQCore on 2025-01-27 - Phase 5
+import FitIQCore
 import Foundation
-import HealthKit  // For HKQuantityTypeIdentifier and HKUnit
 
 public protocol SaveBodyMassUseCaseProtocol {
     func execute(weightKg: Double, date: Date) async throws
 }
 
 public final class SaveBodyMassUseCase: SaveBodyMassUseCaseProtocol {
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
     private let authManager: AuthManager
     private let saveWeightProgressUseCase: SaveWeightProgressUseCase
 
     init(
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         userProfileStorage: UserProfileStoragePortProtocol,
         authManager: AuthManager,
         saveWeightProgressUseCase: SaveWeightProgressUseCase
     ) {
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.userProfileStorage = userProfileStorage
         self.authManager = authManager
         self.saveWeightProgressUseCase = saveWeightProgressUseCase
@@ -34,14 +35,16 @@ public final class SaveBodyMassUseCase: SaveBodyMassUseCaseProtocol {
             "SaveBodyMassUseCase: Attempting to save \(weightKg)kg for user \(currentUserID) on \(date)..."
         )
 
-        // 1. Save the body mass to HealthKit
-        // The HealthKitAdapter now has a saveQuantitySample method
-        try await healthRepository.saveQuantitySample(
+        // 1. Save the body mass to HealthKit using FitIQCore
+        let metric = FitIQCore.HealthMetric(
+            type: .bodyMass,
             value: weightKg,
-            unit: .gramUnit(with: .kilo),
-            typeIdentifier: .bodyMass,
-            date: date
+            unit: "kg",
+            date: date,
+            source: "FitIQ",
+            metadata: [:]
         )
+        try await healthKitService.save(metric: metric)
         print(
             "SaveBodyMassUseCase: Successfully saved \(weightKg)kg to HealthKit for user \(currentUserID) on \(date)."
         )
@@ -64,12 +67,9 @@ public final class SaveBodyMassUseCase: SaveBodyMassUseCaseProtocol {
             // The sync will be retried by RemoteSyncService
         }
 
-        // 3. OPTIONAL: Manually trigger a data update for bodyMass to ensure immediate UI refresh
-        // This can be useful if the observer query takes a moment to fire or if UI needs immediate feedback.
-        // The HealthDataSyncManager.processNewHealthData will then process this.
-        // It's already set up to be called by HealthKitAdapter's onDataUpdate closure.
-        healthRepository.onDataUpdate?(.bodyMass)
-        print("SaveBodyMassUseCase: Signaled onDataUpdate for .bodyMass.")
+        // 3. Note: FitIQCore handles data updates automatically via observers
+        // No manual trigger needed - UI will refresh automatically
+        print("SaveBodyMassUseCase: Body mass saved. FitIQCore will handle data updates.")
     }
 }
 

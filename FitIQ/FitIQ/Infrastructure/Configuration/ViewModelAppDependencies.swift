@@ -103,7 +103,8 @@ class ViewModelAppDependencies: ObservableObject {
             authManager: authManager,
             cloudDataManager: cloudDataManager,
             getLatestHealthKitMetrics: appDependencies.getLatestBodyMetricsUseCase,
-            healthRepository: appDependencies.healthRepository,
+            healthKitService: appDependencies.healthKitService,
+            authService: appDependencies.authService,
             syncBiologicalSexFromHealthKitUseCase: appDependencies
                 .syncBiologicalSexFromHealthKitUseCase,
             deleteAllUserDataUseCase: appDependencies.deleteAllUserDataUseCase,
@@ -118,7 +119,7 @@ class ViewModelAppDependencies: ObservableObject {
         let bodyMassDetailViewModel = BodyMassDetailViewModel(
             getHistoricalWeightUseCase: appDependencies.getHistoricalWeightUseCase,
             authManager: authManager,
-            healthRepository: appDependencies.healthRepository,
+            healthKitService: appDependencies.healthKitService,
             forceHealthKitResyncUseCase: appDependencies.forceHealthKitResyncUseCase
         )
 

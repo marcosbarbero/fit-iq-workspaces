@@ -41,7 +41,7 @@ class AppDependencies: ObservableObject {
     let registerUserUseCase: RegisterUserUseCaseProtocol
     let loginUserUseCase: LoginUserUseCaseProtocol
     let authRepository: AuthRepositoryProtocol
-    let healthRepository: HealthRepositoryProtocol
+    // let healthRepository: HealthRepositoryProtocol // Removed - no longer needed after FitIQCore migration
     let healthKitAuthUseCase: RequestHealthKitAuthorizationUseCase
     let getLatestBodyMetricsUseCase: GetLatestBodyMetricsUseCase
     let getHistoricalBodyMassUseCase: GetHistoricalBodyMassUseCase
@@ -189,7 +189,7 @@ class AppDependencies: ObservableObject {
         registerUserUseCase: RegisterUserUseCaseProtocol,
         loginUserUseCase: LoginUserUseCaseProtocol,
         authRepository: AuthRepositoryProtocol,
-        healthRepository: HealthRepositoryProtocol,
+        // healthRepository: HealthRepositoryProtocol, // Removed - no longer needed
         healthKitAuthUseCase: RequestHealthKitAuthorizationUseCase,
         getLatestBodyMetricsUseCase: GetLatestBodyMetricsUseCase,
         getHistoricalBodyMassUseCase: GetHistoricalBodyMassUseCase,
@@ -290,7 +290,7 @@ class AppDependencies: ObservableObject {
         self.registerUserUseCase = registerUserUseCase
         self.loginUserUseCase = loginUserUseCase
         self.authRepository = authRepository
-        self.healthRepository = healthRepository
+        // self.healthRepository = healthRepository // Removed
         self.healthKitAuthUseCase = healthKitAuthUseCase
         self.getLatestBodyMetricsUseCase = getLatestBodyMetricsUseCase
         self.getHistoricalBodyMassUseCase = getHistoricalBodyMassUseCase
@@ -459,20 +459,19 @@ class AppDependencies: ObservableObject {
         let healthKitService = HealthKitService(healthStore: healthStore)
         let healthAuthService = HealthAuthorizationService(healthStore: healthStore)
 
-        let healthRepository = FitIQHealthKitBridge(
-            healthKitService: healthKitService,
-            authService: healthAuthService,
-            userProfile: userProfileStorageAdapter
-        )
-
         // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
         let healthKitAuthUseCase = HealthKitAuthorizationUseCase(
             authService: healthAuthService)
 
+        // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
         let getLatestBodyMetricsUseCase = GetLatestBodyMetricsUseCase(
-            healthRepository: healthRepository)
+            healthKitService: healthKitService)
         let getHistoricalBodyMassUseCase = GetHistoricalBodyMassUseCase(
-            healthRepository: healthRepository)
+            healthKitService: healthKitService)
+
+        // MIGRATED: Phase 2.2 Day 7 - Now uses FitIQCore directly
+        let userHasHealthKitAuthorizationUseCase = UserHasHealthKitAuthorizationUseCase(
+            authService: healthAuthService)
 
         let getLatestActivitySnapshotUseCase = GetLatestActivitySnapshotUseCase(
             activitySnapshotRepository: swiftDataActivitySnapshotRepository)
@@ -483,9 +482,6 @@ class AppDependencies: ObservableObject {
             authManager: authManager)
 
         let backgroundOperations = BackgroundOperations()
-
-        let verifyHealthKitAuthorizationUseCase = UserHasHealthKitAuthorizationUseCase(
-            healthRepository: healthRepository)
 
         // NEW: Progress Repository - Composite (Local + Remote)
         // Must be created before RemoteSyncService since it depends on it
@@ -630,7 +626,7 @@ class AppDependencies: ObservableObject {
         )
 
         let fetchHealthKitWorkoutsUseCase = FetchHealthKitWorkoutsUseCaseImpl(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             authManager: authManager
         )
 
@@ -671,7 +667,7 @@ class AppDependencies: ObservableObject {
 
         let completeWorkoutSessionUseCase = CompleteWorkoutSessionUseCaseImpl(
             saveWorkoutUseCase: saveWorkoutUseCase,
-            healthRepository: healthRepository
+            healthKitService: healthKitService
         )
 
         let shareWorkoutTemplateUseCase = ShareWorkoutTemplateUseCaseImpl(
@@ -745,8 +741,9 @@ class AppDependencies: ObservableObject {
         )
 
         // NEW: Create Metric-Specific Sync Handlers (Phase 2 refactoring - Hexagonal Architecture Compliant)
+        // UPDATED: Phase 4 - Now using FitIQCore HealthKitService directly
         let stepsSyncHandler = StepsSyncHandler(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             saveStepsProgressUseCase: saveStepsProgressUseCase,
             shouldSyncMetricUseCase: shouldSyncMetricUseCase,
             getLatestEntryDateUseCase: getLatestProgressEntryDateUseCase,
@@ -755,7 +752,7 @@ class AppDependencies: ObservableObject {
         )
 
         let heartRateSyncHandler = HeartRateSyncHandler(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             saveHeartRateProgressUseCase: saveHeartRateProgressUseCase,
             shouldSyncMetricUseCase: shouldSyncMetricUseCase,
             getLatestEntryDateUseCase: getLatestProgressEntryDateUseCase,
@@ -764,7 +761,7 @@ class AppDependencies: ObservableObject {
         )
 
         let sleepSyncHandler = SleepSyncHandler(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             sleepRepository: sleepRepository,
             shouldSyncSleepUseCase: shouldSyncSleepUseCase,
             getLatestSessionDateUseCase: getLatestSleepSessionDateUseCase,
@@ -797,7 +794,7 @@ class AppDependencies: ObservableObject {
         let backgroundSyncManager = BackgroundSyncManager(
             healthDataSyncService: healthDataSyncService,
             backgroundOperations: backgroundOperations,
-            healthRepository: healthRepository,
+            // healthRepository removed - needs FitIQCore migration
             processDailyHealthDataUseCase: processDailyHealthDataUseCase,
             processConsolidatedDailyHealthDataUseCase: processConsolidatedDailyHealthDataUseCase,
             authManager: authManager
@@ -822,7 +819,7 @@ class AppDependencies: ObservableObject {
             healthDataSyncService: healthDataSyncService,
             userProfileStorage: userProfileStorageAdapter,
             requestHealthKitAuthorizationUseCase: healthKitAuthUseCase,
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             authManager: authManager,
             saveWeightProgressUseCase: saveWeightProgressUseCase,
             workoutSyncService: workoutSyncService
@@ -830,7 +827,7 @@ class AppDependencies: ObservableObject {
 
         // NEW: Perform Initial Data Load Use Case (coordinates initial sync after onboarding)
         let performInitialDataLoadUseCase = PerformInitialDataLoadUseCaseImpl(
-            userHasHealthKitAuthorizationUseCase: verifyHealthKitAuthorizationUseCase,
+            userHasHealthKitAuthorizationUseCase: userHasHealthKitAuthorizationUseCase,
             performInitialHealthKitSyncUseCase: performInitialHealthKitSyncUseCase
         )
 
@@ -844,10 +841,10 @@ class AppDependencies: ObservableObject {
         )
 
         // NEW: Save Mood Progress Use Case
+        // MIGRATED: Phase 2.2 Day 7 - Removed unused healthRepository (mood not saved to HealthKit)
         let saveMoodProgressUseCase = SaveMoodProgressUseCaseImpl(
             progressRepository: progressRepository,
-            authManager: authManager,
-            healthRepository: healthRepository
+            authManager: authManager
         )
 
         // NEW: Get Historical Mood Use Case
@@ -898,8 +895,9 @@ class AppDependencies: ObservableObject {
         )
 
         // Instantiate SaveBodyMassUseCase (Domain layer, so it stays here)
+        // UPDATED: Phase 5 - Now using FitIQCore HealthKitService directly
         let saveBodyMassUseCase = SaveBodyMassUseCase(
-            healthRepository: healthRepository,
+            healthKitService: healthKitService,
             userProfileStorage: userProfileStorageAdapter,
             authManager: authManager,
             saveWeightProgressUseCase: saveWeightProgressUseCase
@@ -976,7 +974,8 @@ class AppDependencies: ObservableObject {
 
         let healthKitProfileSyncService = HealthKitProfileSyncService(
             profileEventPublisher: profileEventPublisher,
-            healthKitAdapter: healthRepository,
+            healthKitService: healthKitService,
+            authService: healthAuthService,
             userProfileStorage: userProfileStorageAdapter,
             authManager: authManager
         )
@@ -1048,7 +1047,7 @@ class AppDependencies: ObservableObject {
             registerUserUseCase: registerUserUseCase,
             loginUserUseCase: loginUserUseCase,
             authRepository: authRepository,
-            healthRepository: healthRepository,
+            // healthRepository: healthRepository, // Removed
             healthKitAuthUseCase: healthKitAuthUseCase,
             getLatestBodyMetricsUseCase: getLatestBodyMetricsUseCase,
             getHistoricalBodyMassUseCase: getHistoricalBodyMassUseCase,
@@ -1062,7 +1061,7 @@ class AppDependencies: ObservableObject {
             getLatestActivitySnapshotUseCase: getLatestActivitySnapshotUseCase,
             localHealthDataStore: swiftDataLocalHealthDataStore,
             activitySnapshotEventPublisher: activitySnapshotEventPublisher,
-            userHasHealthKitAuthorizationUseCase: verifyHealthKitAuthorizationUseCase,
+            userHasHealthKitAuthorizationUseCase: userHasHealthKitAuthorizationUseCase,
             authManager: authManager,
             performInitialHealthKitSyncUseCase: performInitialHealthKitSyncUseCase,
             performInitialDataLoadUseCase: performInitialDataLoadUseCase,

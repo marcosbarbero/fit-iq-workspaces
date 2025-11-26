@@ -1,7 +1,7 @@
 // Domain/UseCases/PerformInitialHealthKitSyncUseCase.swift
+// Migrated to FitIQCore on 2025-01-27 - Phase 5
 import FitIQCore
 import Foundation
-import HealthKit
 
 public protocol PerformInitialHealthKitSyncUseCaseProtocol {
     func execute(forUserID userID: UUID) async throws
@@ -24,7 +24,7 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
     private let userProfileStorage: UserProfileStoragePortProtocol
     // The type for this property is the public protocol now.
     private let requestHealthKitAuthorizationUseCase: RequestHealthKitAuthorizationUseCase
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let authManager: AuthManager
     private let saveWeightProgressUseCase: SaveWeightProgressUseCase
     private let workoutSyncService: HealthKitWorkoutSyncService
@@ -34,7 +34,7 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
         healthDataSyncService: HealthDataSyncOrchestrator,
         userProfileStorage: UserProfileStoragePortProtocol,
         requestHealthKitAuthorizationUseCase: RequestHealthKitAuthorizationUseCase,  // This parameter is crucial
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         authManager: AuthManager,
         saveWeightProgressUseCase: SaveWeightProgressUseCase,
         workoutSyncService: HealthKitWorkoutSyncService
@@ -42,7 +42,7 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
         self.healthDataSyncService = healthDataSyncService
         self.userProfileStorage = userProfileStorage
         self.requestHealthKitAuthorizationUseCase = requestHealthKitAuthorizationUseCase
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.authManager = authManager
         self.saveWeightProgressUseCase = saveWeightProgressUseCase
         self.workoutSyncService = workoutSyncService
@@ -140,22 +140,22 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
                 ?? Date.distantPast
 
             do {
-                // Use fetchQuantitySamples with predicate for date range
-                let predicate = HKQuery.predicateForSamples(
-                    withStart: weightStartDate,
-                    end: weightEndDate,
-                    options: .strictStartDate
+                // Use FitIQCore to fetch weight samples
+                let options = HealthQueryOptions(
+                    limit: nil,
+                    sortOrder: .ascending,
+                    aggregation: .none  // Get individual samples
                 )
 
-                let weightSamples = try await healthRepository.fetchQuantitySamples(
-                    for: .bodyMass,
-                    unit: .gramUnit(with: .kilo),
-                    predicateProvider: { predicate },
-                    limit: nil
+                let weightMetrics = try await healthKitService.query(
+                    type: .bodyMass,
+                    from: weightStartDate,
+                    to: weightEndDate,
+                    options: options
                 )
 
                 print(
-                    "PerformInitialHealthKitSyncUseCase: Found \(weightSamples.count) weight samples from last \(historicalSyncDays) days to sync"
+                    "PerformInitialHealthKitSyncUseCase: Found \(weightMetrics.count) weight samples from last \(historicalSyncDays) days to sync"
                 )
 
                 // Save locally WITHOUT immediate sync to avoid rate limiting
@@ -163,19 +163,19 @@ public final class PerformInitialHealthKitSyncUseCase: PerformInitialHealthKitSy
                     "PerformInitialHealthKitSyncUseCase: Saving weight samples locally (no immediate sync)"
                 )
 
-                for (index, sample) in weightSamples.enumerated() {
+                for (index, metric) in weightMetrics.enumerated() {
                     do {
                         // Save locally only - RemoteSyncService will batch sync later
                         _ = try await saveWeightProgressUseCase.execute(
-                            weightKg: sample.value,
-                            date: sample.date
+                            weightKg: metric.value,
+                            date: metric.date
                         )
 
                         // Add small delay every 10 samples to avoid overwhelming the system
                         if (index + 1) % 10 == 0 {
                             try await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
                             print(
-                                "PerformInitialHealthKitSyncUseCase: Saved \(index + 1)/\(weightSamples.count) samples"
+                                "PerformInitialHealthKitSyncUseCase: Saved \(index + 1)/\(weightMetrics.count) samples"
                             )
                         }
                     } catch {

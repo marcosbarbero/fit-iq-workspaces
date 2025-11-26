@@ -2,14 +2,15 @@
 //  ProfileViewModel.swift
 //  FitIQ
 //
-//  Created by Marcos Barbero on 11/10/2025.
-//  Updated for Phase 2.1 - Profile Unification (27/01/2025)
+//  Created by Marcos Barbero on 15/10/2025.
+//  Migrated to FitIQCore on 2025-01-27 - Phase 5
 //
 
 import Combine
 import FitIQCore
 import Foundation
 import HealthKit
+import Observation
 import SwiftData
 
 class ProfileViewModel: ObservableObject {
@@ -19,7 +20,8 @@ class ProfileViewModel: ObservableObject {
     private let updateUserProfileUseCase: UpdateUserProfileUseCaseProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
     private let updateProfileMetadataUseCase: UpdateProfileMetadataUseCase
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
+    private let authService: HealthAuthorizationServiceProtocol
     private let syncBiologicalSexFromHealthKitUseCase: SyncBiologicalSexFromHealthKitUseCase?
     private let deleteAllUserDataUseCase: DeleteAllUserDataUseCase
     private let healthKitAuthUseCase: RequestHealthKitAuthorizationUseCase?
@@ -63,7 +65,8 @@ class ProfileViewModel: ObservableObject {
         authManager: AuthManager,
         cloudDataManager: CloudDataManagerProtocol,
         getLatestHealthKitMetrics: GetLatestBodyMetricsUseCase,
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
+        authService: HealthAuthorizationServiceProtocol,
         syncBiologicalSexFromHealthKitUseCase: SyncBiologicalSexFromHealthKitUseCase? = nil,
         deleteAllUserDataUseCase: DeleteAllUserDataUseCase,
         healthKitAuthUseCase: RequestHealthKitAuthorizationUseCase? = nil
@@ -74,7 +77,8 @@ class ProfileViewModel: ObservableObject {
         self.authManager = authManager
         self.cloudDataManager = cloudDataManager
         self.getLatestHealthKitMetrics = getLatestHealthKitMetrics
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
+        self.authService = authService
         self.syncBiologicalSexFromHealthKitUseCase = syncBiologicalSexFromHealthKitUseCase
         self.deleteAllUserDataUseCase = deleteAllUserDataUseCase
         self.healthKitAuthUseCase = healthKitAuthUseCase
@@ -275,7 +279,7 @@ class ProfileViewModel: ObservableObject {
         }
 
         // Check if HealthKit is available
-        guard healthRepository.isHealthDataAvailable() else {
+        guard authService.isHealthKitAvailable() else {
             print("ProfileViewModel: ⚠️ HealthKit is not available on this device")
             return
         }
@@ -326,9 +330,12 @@ class ProfileViewModel: ObservableObject {
         if biologicalSex.isEmpty {
             print("ProfileViewModel: Attempting to fetch biological sex from HealthKit...")
             do {
-                let hkBiologicalSex = try await healthRepository.fetchBiologicalSex()
+                // Fetch biological sex directly from HKHealthStore
+                let healthStore = HKHealthStore()
+                let biologicalSexObject = try healthStore.biologicalSex()
+                let hkSex = biologicalSexObject.biologicalSex
 
-                if let hkSex = hkBiologicalSex {
+                if hkSex != .notSet {
                     let sexString: String
                     switch hkSex {
                     case .female:
@@ -338,8 +345,6 @@ class ProfileViewModel: ObservableObject {
                     case .other:
                         sexString = "other"
                     case .notSet:
-                        sexString = ""
-                    @unknown default:
                         sexString = ""
                     }
 
@@ -539,10 +544,13 @@ class ProfileViewModel: ObservableObject {
 
         // Fetch from HealthKit
         do {
-            let hkBiologicalSex = try await healthRepository.fetchBiologicalSex()
+            // Fetch biological sex directly from HKHealthStore
+            let healthStore = HKHealthStore()
+            let biologicalSexObject = try healthStore.biologicalSex()
+            let hkSex = biologicalSexObject.biologicalSex
 
-            guard let hkSex = hkBiologicalSex else {
-                print("ProfileViewModel: No biological sex in HealthKit")
+            guard hkSex != .notSet else {
+                print("ProfileViewModel: Biological sex not set in HealthKit")
                 return
             }
 
@@ -558,7 +566,7 @@ class ProfileViewModel: ObservableObject {
                 print("ProfileViewModel: Biological sex not set in HealthKit")
                 return
             @unknown default:
-                print("ProfileViewModel: Unknown biological sex value in HealthKit")
+                print("ProfileViewModel: Unknown biological sex value")
                 return
             }
 

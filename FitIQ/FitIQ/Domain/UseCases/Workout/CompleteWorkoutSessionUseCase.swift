@@ -3,8 +3,10 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 2025-11-10.
+//  Migrated to FitIQCore on 2025-01-27 - Phase 5
 //
 
+import FitIQCore
 import Foundation
 
 /// Use case for completing a workout session
@@ -24,14 +26,14 @@ public protocol CompleteWorkoutSessionUseCase {
 /// Implementation of CompleteWorkoutSessionUseCase
 public final class CompleteWorkoutSessionUseCaseImpl: CompleteWorkoutSessionUseCase {
     private let saveWorkoutUseCase: SaveWorkoutUseCase
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
 
     init(
         saveWorkoutUseCase: SaveWorkoutUseCase,
-        healthRepository: HealthRepositoryProtocol
+        healthKitService: HealthKitServiceProtocol
     ) {
         self.saveWorkoutUseCase = saveWorkoutUseCase
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
     }
 
     public func execute(
@@ -97,18 +99,41 @@ public final class CompleteWorkoutSessionUseCaseImpl: CompleteWorkoutSessionUseC
         // Calculate total distance if we have distance data
         let totalDistance = workout.distanceMeters
 
-        // Write workout to HealthKit
-        try await healthRepository.saveWorkout(
-            activityType: hkActivityType,
+        // Prepare metadata for FitIQCore
+        var metadata: [String: Any] = [
+            "FitIQ Workout": workout.name,
+            "Intensity": "\(workout.intensity ?? 0)",
+            "workoutActivityType": String(hkActivityType),
+        ]
+
+        if let energy = totalEnergy {
+            metadata["totalEnergyBurned"] = energy
+        }
+
+        if let distance = totalDistance {
+            metadata["totalDistance"] = distance
+        }
+
+        // Write workout to HealthKit using FitIQCore
+        let durationSeconds = endDate.timeIntervalSince(startDate)
+
+        // Convert metadata to String-only dictionary for FitIQCore
+        var stringMetadata: [String: String] = [:]
+        for (key, value) in metadata {
+            stringMetadata[key] = "\(value)"
+        }
+
+        let metric = FitIQCore.HealthMetric(
+            type: .workout(.other),
+            value: durationSeconds,
+            unit: "s",
+            date: endDate,
             startDate: startDate,
             endDate: endDate,
-            totalEnergyBurned: totalEnergy,
-            totalDistance: totalDistance,
-            metadata: [
-                "FitIQ Workout": workout.name,
-                "Intensity": "\(workout.intensity ?? 0)",
-            ]
+            source: "FitIQ",
+            metadata: stringMetadata
         )
+        try await healthKitService.save(metric: metric)
     }
 }
 

@@ -44,18 +44,15 @@ final class SaveMoodProgressUseCaseImpl: SaveMoodProgressUseCase {
 
     private let progressRepository: ProgressRepositoryProtocol
     private let authManager: AuthManager
-    private let healthRepository: HealthRepositoryProtocol
 
     // MARK: - Initialization
 
     init(
         progressRepository: ProgressRepositoryProtocol,
-        authManager: AuthManager,
-        healthRepository: HealthRepositoryProtocol
+        authManager: AuthManager
     ) {
         self.progressRepository = progressRepository
         self.authManager = authManager
-        self.healthRepository = healthRepository
     }
 
     // MARK: - Execute

@@ -103,6 +103,25 @@ public enum WorkoutActivityType: String, Codable, CaseIterable {
     // Catch-all
     case other = "Other"
 
+    /// Initialize from string representation (for FitIQCore integration)
+    public static func fromString(_ string: String) -> WorkoutActivityType {
+        // Try to match by raw value first
+        if let type = WorkoutActivityType(rawValue: string) {
+            return type
+        }
+
+        // Try case-insensitive matching
+        let lowercased = string.lowercased()
+        for type in WorkoutActivityType.allCases {
+            if type.rawValue.lowercased() == lowercased {
+                return type
+            }
+        }
+
+        // Default to other if no match
+        return .other
+    }
+
     /// Initialize from HealthKit workout activity type
     public init(from hkType: HKWorkoutActivityType) {
         switch hkType {

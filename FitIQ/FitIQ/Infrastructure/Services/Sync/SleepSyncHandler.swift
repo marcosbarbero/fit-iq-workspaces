@@ -4,8 +4,10 @@
 //
 //  Created by Refactoring on 27/01/2025.
 //  Updated by AI Assistant on 27/01/2025 - Hexagonal Architecture Compliance
+//  Migrated to FitIQCore on 27/01/2025 - Phase 4
 //
 
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -66,24 +68,23 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
 
     let metricType: HealthMetric = .sleep
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let sleepRepository: SleepRepositoryProtocol
     private let shouldSyncSleepUseCase: ShouldSyncSleepUseCase
     private let getLatestSessionDateUseCase: GetLatestSleepSessionDateUseCase
     private let syncTracking: SyncTrackingServiceProtocol  // Kept for backward compatibility
-    private let healthStore = HKHealthStore()
     private var currentUserProfileID: UUID?
 
     // MARK: - Initialization
 
     init(
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         sleepRepository: SleepRepositoryProtocol,
         shouldSyncSleepUseCase: ShouldSyncSleepUseCase,
         getLatestSessionDateUseCase: GetLatestSleepSessionDateUseCase,
         syncTracking: SyncTrackingServiceProtocol
     ) {
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.sleepRepository = sleepRepository
         self.shouldSyncSleepUseCase = shouldSyncSleepUseCase
         self.getLatestSessionDateUseCase = getLatestSessionDateUseCase
@@ -169,7 +170,7 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
         print(String(repeating: "-", count: 80))
 
         // Fetch sleep samples from HealthKit (only missing data)
-        let samples: [HKCategorySample]
+        let samples: [FitIQCore.HealthMetric]
         do {
             samples = try await fetchSleepSamples(from: fetchStartDate, to: endDate)
         } catch {
@@ -199,11 +200,12 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
         )
 
         // Filter sessions: only process those ending AFTER latest synced date
-        let sessionsToProcess: [[HKCategorySample]]
+        let sessionsToProcess: [[FitIQCore.HealthMetric]]
         if let latestDate = latestSessionDate {
             sessionsToProcess = allSleepSessions.filter { sessionSamples in
                 guard let lastSample = sessionSamples.last else { return false }
-                return lastSample.endDate > latestDate
+                let lastEnd = lastSample.endDate ?? lastSample.date
+                return lastEnd > latestDate
             }
             let skippedSessionsCount = allSleepSessions.count - sessionsToProcess.count
             print(
@@ -235,7 +237,7 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
             guard let first = sessionSamples.first, let last = sessionSamples.last else {
                 continue
             }
-            let sessionEnd = last.endDate
+            let sessionEnd = last.endDate ?? last.date
             let sessionDate = startOfDay(for: sessionEnd)
 
             print("Processing session \(index + 1) of \(sessionsToProcess.count)...")
@@ -317,7 +319,7 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
         print(String(repeating: "-", count: 80) + "\n")
 
         // Fetch sleep samples from HealthKit
-        let samples: [HKCategorySample]
+        let samples: [FitIQCore.HealthMetric]
         do {
             samples = try await fetchSleepSamples(from: queryStart, to: queryEnd)
         } catch {
@@ -341,10 +343,12 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
         // Log each sample with detailed information
         var totalSampleMinutes = 0
         for (index, sample) in samples.enumerated() {
-            let value = SleepStageType.fromHealthKit(sample.value)
-            let duration = Int(sample.endDate.timeIntervalSince(sample.startDate) / 60)
-            let sourceID = sample.sourceRevision.source.bundleIdentifier
-            let sourceName = sample.sourceRevision.source.name
+            let value = SleepStageType.fromHealthKit(Int(sample.value))
+            let sampleStart = sample.startDate ?? sample.date
+            let sampleEnd = sample.endDate ?? sample.date
+            let duration = Int(sampleEnd.timeIntervalSince(sampleStart) / 60)
+            let sourceID = sample.metadata["sourceID"] ?? sample.source ?? "Unknown"
+            let sourceName = sample.metadata["sourceName"] ?? sample.source ?? "Unknown"
             totalSampleMinutes += duration
 
             print(String(format: "  [%3lld] %@", index, String(repeating: "-", count: 60)))
@@ -352,10 +356,11 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
                 String(
                     format: "        Stage: %-12@ | Duration: %3lld min | isActualSleep: %@",
                     value.rawValue, duration, value.isActualSleep ? "✅" : "❌"))
-            print(String(format: "        Start: %@", sample.startDate.description))
-            print(String(format: "        End:   %@", sample.endDate.description))
+            print(String(format: "        Start: %@", sampleStart.description))
+            print(String(format: "        End:   %@", sampleEnd.description))
             print(String(format: "        Source: %@ (%@)", sourceName, sourceID))
-            print(String(format: "        UUID: %@", sample.uuid.uuidString))
+            let uuid = sample.metadata["uuid"] ?? sample.id.uuidString
+            print(String(format: "        UUID: %@", uuid))
         }
 
         print(String(repeating: "-", count: 80))
@@ -376,15 +381,18 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
         // Log each session
         for (sessionIndex, sessionSamples) in allSleepSessions.enumerated() {
             guard let first = sessionSamples.first, let last = sessionSamples.last else { continue }
-            let sessionDuration = Int(last.endDate.timeIntervalSince(first.startDate) / 60)
+            let firstStart = first.startDate ?? first.date
+            let lastEnd = last.endDate ?? last.date
+            let sessionDuration = Int(lastEnd.timeIntervalSince(firstStart) / 60)
             print("\n  Session \(sessionIndex + 1):")
             print("    Sample count: \(sessionSamples.count)")
-            print("    Start: \(first.startDate)")
-            print("    End: \(last.endDate)")
+            print("    Start: \(firstStart)")
+            print("    End: \(lastEnd)")
             print(
                 "    Duration: \(sessionDuration) minutes (\(String(format: "%.1f", Double(sessionDuration) / 60.0))h)"
             )
-            print("    Source: \(first.sourceRevision.source.name)")
+            let firstSourceName = first.metadata["sourceName"] ?? first.source ?? "Unknown"
+            print("    Source: \(firstSourceName)")
         }
         print(String(repeating: "-", count: 80) + "\n")
 
@@ -398,7 +406,7 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
 
         let filteredSessions = allSleepSessions.filter { sessionSamples in
             guard let lastSample = sessionSamples.last else { return false }
-            let sessionEnd = lastSample.endDate
+            let sessionEnd = lastSample.endDate ?? lastSample.date
             let matches = sessionEnd >= startOfDay && sessionEnd < endOfDay
 
             print("\n  Checking session ending at: \(sessionEnd)")
@@ -467,55 +475,42 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
 
     /// Fetches sleep samples from HealthKit for the given time range
     private func fetchSleepSamples(from startDate: Date, to endDate: Date) async throws
-        -> [HKCategorySample]
+        -> [FitIQCore.HealthMetric]
     {
-        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
-            throw NSError(
-                domain: "SleepSyncHandler",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "Sleep analysis type not available"]
-            )
-        }
+        let options = HealthQueryOptions(
+            limit: nil,
+            sortOrder: .ascending,
+            aggregation: .none  // Get individual samples
+        )
 
-        let predicate = HKQuery.predicateForSamples(
-            withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: sleepType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [
-                    NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-                ]
-            ) { _, results, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: results as? [HKCategorySample] ?? [])
-                }
-            }
-            healthStore.execute(query)
-        }
+        return try await healthKitService.query(
+            type: .sleepAnalysis,
+            from: startDate,
+            to: endDate,
+            options: options
+        )
     }
 
     /// Groups sleep samples into continuous sleep sessions
     /// Apple HealthKit provides multiple samples for a single sleep session (one per stage)
     /// We need to merge overlapping/adjacent samples from the same source into sessions
-    private func groupSamplesIntoSessions(_ samples: [HKCategorySample]) -> [[HKCategorySample]] {
+    private func groupSamplesIntoSessions(_ samples: [FitIQCore.HealthMetric]) -> [[FitIQCore
+        .HealthMetric]]
+    {
         print("  🔗 Starting session grouping algorithm...")
         print("  Rule 1: New session if different source")
         print("  Rule 2: New session if gap > 2 hours")
         print("  Rule 3: New session if first sample")
 
-        var sleepSessions: [[HKCategorySample]] = []
-        var currentSession: [HKCategorySample] = []
+        var sleepSessions: [[FitIQCore.HealthMetric]] = []
+        var currentSession: [FitIQCore.HealthMetric] = []
         var lastEndTime: Date?
         var lastSourceID: String?
 
         for (index, sample) in samples.enumerated() {
-            let sourceID = sample.sourceRevision.source.bundleIdentifier
-            let sampleStart = sample.startDate
+            let sourceID = sample.metadata["sourceID"] ?? ""
+            let sampleStart = sample.startDate ?? sample.date
+            let sampleEnd = sample.endDate ?? sample.date
 
             let gapFromLast = lastEndTime != nil ? sampleStart.timeIntervalSince(lastEndTime!) : 0
             let gapHours = gapFromLast / 3600.0
@@ -545,7 +540,7 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
             }
 
             currentSession.append(sample)
-            lastEndTime = sample.endDate
+            lastEndTime = sampleEnd
             lastSourceID = sourceID
         }
 
@@ -562,7 +557,7 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
 
     /// Processes a single sleep session: converts samples, calculates metrics, and saves
     private func processSleepSession(
-        _ sessionSamples: [HKCategorySample],
+        _ sessionSamples: [FitIQCore.HealthMetric],
         forDate date: Date,
         userID: UUID
     ) async throws -> Bool {
@@ -572,9 +567,9 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
             return false
         }
 
-        let sessionStart = firstSample.startDate
-        let sessionEnd = lastSample.endDate
-        let sourceID = firstSample.uuid.uuidString
+        let sessionStart = firstSample.startDate ?? firstSample.date
+        let sessionEnd = lastSample.endDate ?? lastSample.date
+        let sourceID = firstSample.metadata["uuid"] ?? UUID().uuidString
 
         print("\n" + String(repeating: "·", count: 80))
         print("  Processing session:")
@@ -598,13 +593,16 @@ final class SleepSyncHandler: HealthMetricSyncHandler {
         var stages: [SleepStage] = []
         print("  Converting \(sessionSamples.count) samples to sleep stages...")
         for sample in sessionSamples {
-            let stageType = SleepStageType.fromHealthKit(sample.value)
-            let duration = Int(sample.endDate.timeIntervalSince(sample.startDate) / 60)  // minutes
+            let stageValue = Int(sample.value)
+            let stageType = SleepStageType.fromHealthKit(stageValue)
+            let sampleStart = sample.startDate ?? sample.date
+            let sampleEnd = sample.endDate ?? sample.date
+            let duration = Int(sampleEnd.timeIntervalSince(sampleStart) / 60)  // minutes
 
             let stage = SleepStage(
                 stage: stageType,
-                startTime: sample.startDate,
-                endTime: sample.endDate,
+                startTime: sampleStart,
+                endTime: sampleEnd,
                 durationMinutes: duration
             )
             stages.append(stage)

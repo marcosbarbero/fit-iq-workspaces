@@ -3,10 +3,11 @@
 //  FitIQ
 //
 //  Created by Refactoring on 27/01/2025.
+//  Migrated to FitIQCore on 27/01/2025 - Phase 4
 //
 
+import FitIQCore
 import Foundation
-import HealthKit
 
 /// Handles syncing of heart rate data from HealthKit to local storage and progress tracking.
 ///
@@ -37,7 +38,7 @@ final class HeartRateSyncHandler: HealthMetricSyncHandler {
 
     let metricType: HealthMetric = .heartRate
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let saveHeartRateProgressUseCase: SaveHeartRateProgressUseCase
     private let shouldSyncMetricUseCase: ShouldSyncMetricUseCase
     private let getLatestEntryDateUseCase: GetLatestProgressEntryDateUseCase
@@ -48,14 +49,14 @@ final class HeartRateSyncHandler: HealthMetricSyncHandler {
     // MARK: - Initialization
 
     init(
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         saveHeartRateProgressUseCase: SaveHeartRateProgressUseCase,
         shouldSyncMetricUseCase: ShouldSyncMetricUseCase,
         getLatestEntryDateUseCase: GetLatestProgressEntryDateUseCase,
         authManager: AuthManager,
         syncTracking: SyncTrackingServiceProtocol
     ) {
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.saveHeartRateProgressUseCase = saveHeartRateProgressUseCase
         self.shouldSyncMetricUseCase = shouldSyncMetricUseCase
         self.getLatestEntryDateUseCase = getLatestEntryDateUseCase
@@ -133,11 +134,22 @@ final class HeartRateSyncHandler: HealthMetricSyncHandler {
         // Fetch hourly statistics from HealthKit (only missing data)
         let hourlyHeartRates: [Date: Int]
         do {
-            hourlyHeartRates = try await healthRepository.fetchHourlyStatistics(
-                for: .heartRate,
-                unit: HKUnit.count().unitDivided(by: .minute()),
+            let options = HealthQueryOptions(
+                limit: nil,
+                sortOrder: .ascending,
+                aggregation: .sum(.hourly)
+            )
+
+            let metrics = try await healthKitService.query(
+                type: .heartRate,
                 from: fetchStartDate,
-                to: endDate
+                to: endDate,
+                options: options
+            )
+
+            // Convert metrics to hourly dictionary
+            hourlyHeartRates = Dictionary(
+                uniqueKeysWithValues: metrics.map { ($0.date, Int($0.value)) }
             )
         } catch {
             print("HeartRateSyncHandler: ❌ HealthKit query failed: \(error.localizedDescription)")

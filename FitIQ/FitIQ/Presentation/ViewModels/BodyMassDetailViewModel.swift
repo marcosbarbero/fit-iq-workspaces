@@ -4,6 +4,7 @@
 //
 //  Created by Marcos Barbero on 17/10/2025.
 //  Updated by AI Assistant on 27/01/2025.
+//  Migrated to FitIQCore on 2025-01-27 - Phase 5
 //
 
 import Combine
@@ -38,7 +39,7 @@ final class BodyMassDetailViewModel {
 
     private let getHistoricalWeightUseCase: GetHistoricalWeightUseCase
     private let authManager: AuthManager
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let forceHealthKitResyncUseCase: ForceHealthKitResyncUseCase?
 
     // MARK: - Time Range
@@ -69,12 +70,12 @@ final class BodyMassDetailViewModel {
     init(
         getHistoricalWeightUseCase: GetHistoricalWeightUseCase,
         authManager: AuthManager,
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         forceHealthKitResyncUseCase: ForceHealthKitResyncUseCase? = nil
     ) {
         self.getHistoricalWeightUseCase = getHistoricalWeightUseCase
         self.authManager = authManager
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.forceHealthKitResyncUseCase = forceHealthKitResyncUseCase
     }
 
@@ -294,20 +295,24 @@ final class BodyMassDetailViewModel {
 
         // Try to fetch weight samples
         do {
+            print("Fetching weight samples from HealthKit directly...")
             let startDate = Calendar.current.date(byAdding: .year, value: -10, to: Date()) ?? Date()
-            let predicate = HKQuery.predicateForSamples(
-                withStart: startDate,
-                end: Date(),
-                options: .strictStartDate
-            )
 
             print("\nFetching weight samples from last 10 years...")
-            let samples = try await healthRepository.fetchQuantitySamples(
-                for: .bodyMass,
-                unit: .gramUnit(with: .kilo),
-                predicateProvider: { predicate },
-                limit: nil
+            let options = HealthQueryOptions(
+                limit: nil,
+                sortOrder: .ascending,
+                aggregation: .none
             )
+
+            let metrics = try await healthKitService.query(
+                type: .bodyMass,
+                from: startDate,
+                to: Date(),
+                options: options
+            )
+
+            let samples = metrics.map { ($0.value, $0.date) }
 
             print("✅ Fetch successful!")
             print("Total samples found: \(samples.count)")
@@ -316,7 +321,7 @@ final class BodyMassDetailViewModel {
                 print("⚠️ WARNING: No weight samples found in HealthKit!")
                 print("Please check Apple Health app for weight entries.")
             } else {
-                let dates = samples.map { $0.date }
+                let dates = samples.map { $0.1 }
                 if let latest = dates.max() {
                     print("Latest entry: \(latest)")
                 }
@@ -327,7 +332,7 @@ final class BodyMassDetailViewModel {
                 // Show first 5 samples
                 print("\nFirst 5 samples:")
                 for (index, sample) in samples.prefix(5).enumerated() {
-                    print("  \(index + 1). \(sample.date): \(sample.value) kg")
+                    print("  \(index + 1). \(sample.1): \(sample.0) kg")
                 }
             }
 

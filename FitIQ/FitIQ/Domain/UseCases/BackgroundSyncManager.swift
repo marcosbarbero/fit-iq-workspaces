@@ -13,7 +13,8 @@ import UIKit  // Added for UIApplication.shared.applicationState
 public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     private let healthDataSyncService: HealthDataSyncOrchestrator
     private let backgroundOperations: BackgroundOperationsProtocol
-    private var healthRepository: HealthRepositoryProtocol
+    // TODO: Migrate to FitIQCore observer patterns (Phase 6.5)
+    // private var healthRepository: HealthRepositoryProtocol
     private let processDailyHealthDataUseCase: ProcessDailyHealthDataUseCaseProtocol
     private let processConsolidatedDailyHealthDataUseCase:
         ProcessConsolidatedDailyHealthDataUseCaseProtocol
@@ -30,7 +31,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     init(
         healthDataSyncService: HealthDataSyncOrchestrator,
         backgroundOperations: BackgroundOperationsProtocol,
-        healthRepository: HealthRepositoryProtocol,
+        // healthRepository: HealthRepositoryProtocol, // TODO: Remove after FitIQCore migration
         processDailyHealthDataUseCase: ProcessDailyHealthDataUseCaseProtocol,
         processConsolidatedDailyHealthDataUseCase:
             ProcessConsolidatedDailyHealthDataUseCaseProtocol,
@@ -38,7 +39,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     ) {
         self.healthDataSyncService = healthDataSyncService
         self.backgroundOperations = backgroundOperations
-        self.healthRepository = healthRepository
+        // self.healthRepository = healthRepository // TODO: Migrate to FitIQCore
         self.processDailyHealthDataUseCase = processDailyHealthDataUseCase
         self.processConsolidatedDailyHealthDataUseCase = processConsolidatedDailyHealthDataUseCase
         self.authManager = authManager
@@ -195,17 +196,24 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
     }
 
     fileprivate func setOnDataUpdateHandler() {
+        // TODO: Migrate to FitIQCore's observeChanges() pattern (Phase 6.5)
+        // This code used legacy HealthRepositoryProtocol observer pattern
+        // Temporarily disabled until FitIQCore migration complete
+        print("BackgroundSyncManager: HealthKit observer handler - temporarily disabled")
+
+        /*
+        // Legacy code - needs migration to FitIQCore observeChanges()
         self.healthRepository.onDataUpdate = { [weak self] typeIdentifier in
             guard let self = self else { return }
-
+        
             // This part runs on a HealthKit background queue.
             // ONLY perform thread-safe operations here.
-
+        
             let userDefaults = UserDefaults.standard
             var pendingTypes =
                 userDefaults.array(forKey: BackgroundSyncManager.pendingHealthKitSyncTypesKey)
                 as? [String] ?? []
-
+        
             if !pendingTypes.contains(typeIdentifier.rawValue) {
                 pendingTypes.append(typeIdentifier.rawValue)
                 userDefaults.set(
@@ -218,19 +226,19 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                     "BackgroundSyncManager: \(typeIdentifier.rawValue) is already in pending HealthKit sync types. Not adding again."
                 )
             }
-
+        
             // Always schedule a background task (debounced) regardless of app state.
             // This ensures data is eventually synced even if the app is killed or in the background.
             self.backgroundTaskScheduleDebounceTask?.cancel()
             print(
                 "BackgroundSyncManager: Previous background task debounce cancelled (if any). Starting new debounce for \(self.debounceInterval) seconds to schedule BGTask."
             )
-
+        
             self.backgroundTaskScheduleDebounceTask = Task {
                 do {
                     try await Task.sleep(nanoseconds: UInt64(self.debounceInterval * 1_000_000_000))
                     try Task.checkCancellation()
-
+        
                     print(
                         "BackgroundSyncManager: Debounce finished. Attempting to schedule HealthKitSyncTask \(HealthKitSyncTaskID)."
                     )
@@ -253,7 +261,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                     )
                 }
             }
-
+        
             // Handle immediate foreground sync on the main thread, with its own debounce.
             // Dispatch to the main queue for UI-related checks and foreground operations.
             DispatchQueue.main.async {
@@ -261,7 +269,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                     print(
                         "BackgroundSyncManager: App is active. Scheduling debounced foreground sync."
                     )
-
+        
                     self.foregroundSyncDebounceTask?.cancel()  // Cancel previous foreground debounce task
                     // Launch a new Task on the main actor to perform the debounced foreground sync
                     self.foregroundSyncDebounceTask = Task { @MainActor in
@@ -269,7 +277,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                             try await Task.sleep(
                                 nanoseconds: UInt64(self.debounceInterval * 1_000_000_000))
                             try Task.checkCancellation()
-
+        
                             print(
                                 "BackgroundSyncManager: Debounce finished for foreground sync. Performing immediate foreground sync."
                             )
@@ -295,6 +303,7 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                 }
             }
         }
+        */
     }
 
     /// Initiates observation of relevant HealthKit data types.
@@ -318,6 +327,8 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                         )
                         return
                     }
+                    // TODO: Migrate to FitIQCore's observeChanges() pattern (Phase 6.5)
+                    /*
                     do {
                         try await self.healthRepository.startObserving(for: type)
                     } catch let error as HealthKitError {
@@ -329,6 +340,10 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                             "BackgroundSyncManager: An unexpected error occurred while observing \(typeIdentifier.rawValue): \(error.localizedDescription)"
                         )
                     }
+                    */
+                    print(
+                        "BackgroundSyncManager: Observing \(typeIdentifier.rawValue) - temporarily disabled"
+                    )
                 }
             }
 
@@ -339,6 +354,8 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                     print("BackgroundSyncManager: Failed to get sleep analysis type.")
                     return
                 }
+                // TODO: Migrate to FitIQCore's observeChanges() pattern (Phase 6.5)
+                /*
                 do {
                     try await self.healthRepository.startObserving(for: sleepType)
                     print("BackgroundSyncManager: ✅ Started observing sleep analysis")
@@ -351,6 +368,8 @@ public final class BackgroundSyncManager: BackgroundSyncManagerProtocol {
                         "BackgroundSyncManager: An unexpected error occurred while observing sleep analysis: \(error.localizedDescription)"
                     )
                 }
+                */
+                print("BackgroundSyncManager: Sleep observation - temporarily disabled")
             }
         }
 

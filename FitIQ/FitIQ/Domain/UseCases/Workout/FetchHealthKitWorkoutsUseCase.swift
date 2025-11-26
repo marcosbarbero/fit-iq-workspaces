@@ -3,10 +3,11 @@
 //  FitIQ
 //
 //  Created by AI Assistant on 2025-01-28.
+//  Migrated to FitIQCore on 2025-01-27 - Phase 5
 //
 
+import FitIQCore
 import Foundation
-import HealthKit
 
 /// Protocol defining the contract for fetching workouts from HealthKit
 protocol FetchHealthKitWorkoutsUseCase {
@@ -23,16 +24,16 @@ final class FetchHealthKitWorkoutsUseCaseImpl: FetchHealthKitWorkoutsUseCase {
 
     // MARK: - Dependencies
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let authManager: AuthManager
 
     // MARK: - Initialization
 
     init(
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         authManager: AuthManager
     ) {
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.authManager = authManager
     }
 
@@ -48,13 +49,27 @@ final class FetchHealthKitWorkoutsUseCaseImpl: FetchHealthKitWorkoutsUseCase {
             "FetchHealthKitWorkoutsUseCase: Fetching HealthKit workouts from \(startDate) to \(endDate)"
         )
 
-        // Fetch workouts from HealthKit via health repository
-        let hkWorkouts = try await healthRepository.fetchWorkouts(from: startDate, to: endDate)
+        // Fetch workouts from HealthKit via FitIQCore
+        // Note: HealthDataType.workout requires a WorkoutType parameter
+        // We'll use .other as a generic type and rely on metadata for specifics
+        let options = HealthQueryOptions(
+            limit: nil,
+            sortOrder: .chronological,
+            aggregation: nil,  // Get individual workout samples
+            includeMetadata: true  // Need metadata for workout details
+        )
 
-        // Convert HKWorkout to domain WorkoutEntry (with effort scores)
+        let workoutMetrics = try await healthKitService.query(
+            type: .workout(.other),  // Query all workout types
+            from: startDate,
+            to: endDate,
+            options: options
+        )
+
+        // Convert HealthMetric to domain WorkoutEntry
         var workoutEntries: [WorkoutEntry] = []
-        for hkWorkout in hkWorkouts {
-            let workoutEntry = await convertToWorkoutEntry(hkWorkout: hkWorkout, userID: userID)
+        for metric in workoutMetrics {
+            let workoutEntry = convertToWorkoutEntry(metric: metric, userID: userID)
             workoutEntries.append(workoutEntry)
         }
 
@@ -67,43 +82,45 @@ final class FetchHealthKitWorkoutsUseCaseImpl: FetchHealthKitWorkoutsUseCase {
 
     // MARK: - Private Helpers
 
-    /// Convert HKWorkout to domain WorkoutEntry
-    private func convertToWorkoutEntry(hkWorkout: HKWorkout, userID: String) async -> WorkoutEntry {
-        // Map HealthKit activity type to domain enum
-        let activityType = WorkoutActivityType(from: hkWorkout.workoutActivityType)
+    /// Convert HealthMetric to domain WorkoutEntry
+    private func convertToWorkoutEntry(metric: FitIQCore.HealthMetric, userID: String)
+        -> WorkoutEntry
+    {
+        // Extract workout type from metadata or use default
+        let activityTypeRaw = metric.metadata["workoutActivityType"] ?? "other"
+        let activityType = WorkoutActivityType.fromString(activityTypeRaw)
 
-        // Extract duration in minutes
-        let durationMinutes = Int(hkWorkout.duration / 60.0)
+        // Extract duration in minutes (from startDate to endDate)
+        let start = metric.startDate ?? metric.date
+        let end = metric.endDate ?? metric.date
+        let durationMinutes = Int(end.timeIntervalSince(start) / 60.0)
 
-        // Extract calories burned (if available)
-        var caloriesBurned: Int?
-        if let energyBurned = hkWorkout.totalEnergyBurned {
-            caloriesBurned = Int(energyBurned.doubleValue(for: .kilocalorie()))
-        }
-
-        // Extract distance (if available)
-        var distanceMeters: Double?
-        if let distance = hkWorkout.totalDistance {
-            distanceMeters = distance.doubleValue(for: .meter())
-        }
-
-        // Extract intensity/RPE from Apple Fitness post-workout rating (iOS 18+)
-        // In iOS 18+, effort score is a separate HKQuantitySample, not in workout metadata
-        var intensity: Int?
-
-        // Try to fetch effort score as separate quantity sample (iOS 18+)
-        do {
-            intensity = try await healthRepository.fetchWorkoutEffortScore(for: hkWorkout)
-            if let score = intensity {
-                print("FetchHealthKitWorkoutsUseCase: ✅ Found effort score: \(score)")
-            } else {
-                print("FetchHealthKitWorkoutsUseCase: ℹ️ No effort score found for this workout")
+        // Extract calories burned from metadata
+        let caloriesBurned: Int? = {
+            if let caloriesString = metric.metadata["totalEnergyBurned"] {
+                return Int(caloriesString)
             }
-        } catch {
-            print(
-                "FetchHealthKitWorkoutsUseCase: ⚠️ Error fetching effort score: \(error.localizedDescription)"
-            )
-        }
+            return nil
+        }()
+
+        // Extract distance from metadata
+        let distanceMeters: Double? = {
+            if let distanceString = metric.metadata["totalDistance"] {
+                return Double(distanceString)
+            }
+            return nil
+        }()
+
+        // Extract intensity/effort score from metadata
+        let intensity: Int? = {
+            if let intensityString = metric.metadata["effortScore"] {
+                return Int(intensityString)
+            }
+            return nil
+        }()
+
+        // Extract source ID (UUID) from metadata
+        let sourceID = metric.metadata["uuid"] ?? UUID().uuidString
 
         // Create WorkoutEntry
         return WorkoutEntry(
@@ -112,14 +129,14 @@ final class FetchHealthKitWorkoutsUseCaseImpl: FetchHealthKitWorkoutsUseCase {
             activityType: activityType,
             title: nil,  // HealthKit doesn't provide workout titles
             notes: nil,
-            startedAt: hkWorkout.startDate,
-            endedAt: hkWorkout.endDate,
+            startedAt: start,
+            endedAt: end,
             durationMinutes: durationMinutes,
             caloriesBurned: caloriesBurned,
             distanceMeters: distanceMeters,
             intensity: intensity,  // RPE/effort from Apple Fitness post-workout slider (0-10 scale)
             source: "HealthKit",
-            sourceID: hkWorkout.uuid.uuidString,  // Use HealthKit UUID for deduplication
+            sourceID: sourceID,  // Use HealthKit UUID for deduplication
             createdAt: Date(),
             updatedAt: nil,
             backendID: nil,

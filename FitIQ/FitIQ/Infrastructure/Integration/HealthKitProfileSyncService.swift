@@ -4,6 +4,7 @@
 //
 //  Created by AI Assistant on 27/01/2025.
 //  Part of Profile Edit Implementation - HealthKit Integration
+//  Migrated to FitIQCore on 2025-01-27 - Phase 5
 //
 
 import Combine
@@ -42,7 +43,8 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
     // MARK: - Dependencies
 
     private let profileEventPublisher: ProfileEventPublisherProtocol
-    private let healthKitAdapter: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
+    private let authService: HealthAuthorizationServiceProtocol
     private let userProfileStorage: UserProfileStoragePortProtocol
     private let authManager: AuthManager
 
@@ -54,12 +56,14 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
 
     init(
         profileEventPublisher: ProfileEventPublisherProtocol,
-        healthKitAdapter: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
+        authService: HealthAuthorizationServiceProtocol,
         userProfileStorage: UserProfileStoragePortProtocol,
         authManager: AuthManager
     ) {
         self.profileEventPublisher = profileEventPublisher
-        self.healthKitAdapter = healthKitAdapter
+        self.healthKitService = healthKitService
+        self.authService = authService
         self.userProfileStorage = userProfileStorage
         self.authManager = authManager
 
@@ -134,7 +138,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
 
     private func syncPhysicalProfileToHealthKit(profile: FitIQCore.UserProfile) async throws {
         // Check if HealthKit is available
-        guard healthKitAdapter.isHealthDataAvailable() else {
+        guard authService.isHealthKitAvailable() else {
             print("HealthKitProfileSyncService: HealthKit not available on this device")
             return
         }
@@ -142,14 +146,17 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         // Sync height (can be written to HealthKit)
         if let heightCm = profile.heightCm, heightCm > 0 {
             do {
-                // Convert height to meters and save using the protocol method
+                // Convert height to meters and save using FitIQCore
                 let heightInMeters = heightCm / 100.0
-                try await healthKitAdapter.saveQuantitySample(
+                let metric = FitIQCore.HealthMetric(
+                    type: .height,
                     value: heightInMeters,
-                    unit: HKUnit.meter(),
-                    typeIdentifier: .height,
-                    date: Date()
+                    unit: "m",
+                    date: Date(),
+                    source: "FitIQ",
+                    metadata: [:]
                 )
+                try await healthKitService.save(metric: metric)
                 print("HealthKitProfileSyncService: Successfully synced height to HealthKit")
             } catch {
                 print("HealthKitProfileSyncService: Failed to save height to HealthKit: \(error)")
@@ -179,7 +186,11 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         // Check if date of birth matches
         if let profileDob = profile.dateOfBirth {
             do {
-                if let healthKitDob = try await healthKitAdapter.fetchDateOfBirth() {
+                // Fetch date of birth directly from HKHealthStore
+                let healthStore = HKHealthStore()
+                if let dateOfBirthComponents = try? healthStore.dateOfBirthComponents(),
+                    let healthKitDob = Calendar.current.date(from: dateOfBirthComponents)
+                {
                     let calendar = Calendar.current
                     let isSameDay = calendar.isDate(profileDob, inSameDayAs: healthKitDob)
 
@@ -204,8 +215,13 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         // Check if biological sex matches
         if let profileSex = profile.biologicalSex {
             do {
-                if let healthKitSex = try await healthKitAdapter.fetchBiologicalSex() {
-                    let healthKitSexString = biologicalSexToString(healthKitSex)
+                // Fetch biological sex directly from HKHealthStore
+                let healthStore = HKHealthStore()
+                if let biologicalSexObject = try? healthStore.biologicalSex(),
+                    biologicalSexObject.biologicalSex != .notSet
+                {
+                    let healthKitSexString = hkBiologicalSexToString(
+                        biologicalSexObject.biologicalSex)
 
                     if profileSex.lowercased() == healthKitSexString.lowercased() {
                         print("HealthKitProfileSyncService: ✅ Biological sex matches HealthKit")
@@ -226,7 +242,7 @@ final class HealthKitProfileSyncService: HealthKitProfileSyncServiceProtocol {
         }
     }
 
-    private func biologicalSexToString(_ sex: HKBiologicalSex) -> String {
+    private func hkBiologicalSexToString(_ sex: HKBiologicalSex) -> String {
         switch sex {
         case .female:
             return "female"

@@ -3,10 +3,11 @@
 //  FitIQ
 //
 //  Created by Refactoring on 27/01/2025.
+//  Migrated to FitIQCore on 27/01/2025 - Phase 4
 //
 
+import FitIQCore
 import Foundation
-import HealthKit
 
 /// Handles syncing of step count data from HealthKit to local storage and progress tracking.
 ///
@@ -37,7 +38,7 @@ final class StepsSyncHandler: HealthMetricSyncHandler {
 
     let metricType: HealthMetric = .steps
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
     private let saveStepsProgressUseCase: SaveStepsProgressUseCase
     private let shouldSyncMetricUseCase: ShouldSyncMetricUseCase
     private let getLatestEntryDateUseCase: GetLatestProgressEntryDateUseCase
@@ -48,14 +49,14 @@ final class StepsSyncHandler: HealthMetricSyncHandler {
     // MARK: - Initialization
 
     init(
-        healthRepository: HealthRepositoryProtocol,
+        healthKitService: HealthKitServiceProtocol,
         saveStepsProgressUseCase: SaveStepsProgressUseCase,
         shouldSyncMetricUseCase: ShouldSyncMetricUseCase,
         getLatestEntryDateUseCase: GetLatestProgressEntryDateUseCase,
         authManager: AuthManager,
         syncTracking: SyncTrackingServiceProtocol
     ) {
-        self.healthRepository = healthRepository
+        self.healthKitService = healthKitService
         self.saveStepsProgressUseCase = saveStepsProgressUseCase
         self.shouldSyncMetricUseCase = shouldSyncMetricUseCase
         self.getLatestEntryDateUseCase = getLatestEntryDateUseCase
@@ -152,11 +153,22 @@ final class StepsSyncHandler: HealthMetricSyncHandler {
         // Fetch hourly statistics from HealthKit (only missing data)
         let hourlySteps: [Date: Int]
         do {
-            hourlySteps = try await healthRepository.fetchHourlyStatistics(
-                for: .stepCount,
-                unit: HKUnit.count(),
+            let options = HealthQueryOptions(
+                limit: nil,
+                sortOrder: .ascending,
+                aggregation: .sum(.hourly)
+            )
+
+            let metrics = try await healthKitService.query(
+                type: .stepCount,
                 from: fetchStartDate,
-                to: endDate
+                to: endDate,
+                options: options
+            )
+
+            // Convert metrics to hourly dictionary
+            hourlySteps = Dictionary(
+                uniqueKeysWithValues: metrics.map { ($0.date, Int($0.value)) }
             )
         } catch {
             print("StepsSyncHandler: ❌ HealthKit query failed: \(error.localizedDescription)")

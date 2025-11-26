@@ -5,6 +5,7 @@
 //  Created by AI Assistant on 27/01/2025.
 //
 
+import FitIQCore
 import Foundation
 import HealthKit
 
@@ -61,27 +62,29 @@ struct HealthKitDiagnosticResult {
 /// Implementation
 final class DiagnoseHealthKitAccessUseCaseImpl: DiagnoseHealthKitAccessUseCase {
 
-    private let healthRepository: HealthRepositoryProtocol
+    private let healthKitService: HealthKitServiceProtocol
+    private let authService: HealthAuthorizationServiceProtocol
 
-    init(healthRepository: HealthRepositoryProtocol) {
-        self.healthRepository = healthRepository
+    init(
+        healthKitService: HealthKitServiceProtocol,
+        authService: HealthAuthorizationServiceProtocol
+    ) {
+        self.healthKitService = healthKitService
+        self.authService = authService
     }
 
     func execute() async -> HealthKitDiagnosticResult {
         var errors: [String] = []
 
-        // 1. Check if HealthKit is available on device
-        let isHealthKitAvailable = HKHealthStore.isHealthDataAvailable()
+        // 1. Check if HealthKit is available on device (via FitIQCore)
+        let isHealthKitAvailable = authService.isHealthKitAvailable()
         if !isHealthKitAvailable {
             errors.append("HealthKit is not available on this device")
         }
 
-        // 2. Check authorization status
-        let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass)!
-        let healthStore = HKHealthStore()
-
-        let readStatus = healthStore.authorizationStatus(for: weightType)
-        let hasWeightReadPermission = (readStatus == .sharingAuthorized)
+        // 2. Check authorization status (via FitIQCore)
+        let readStatus = authService.authorizationStatus(for: .bodyMass)
+        let hasWeightReadPermission = readStatus.isAuthorized
 
         // Note: Write permission status cannot be determined (returns notDetermined)
         // We'll assume it's granted if read is granted
@@ -98,26 +101,23 @@ final class DiagnoseHealthKitAccessUseCaseImpl: DiagnoseHealthKitAccessUseCase {
 
         if hasWeightReadPermission {
             do {
-                // Fetch all weight samples (last 10 years)
+                // Fetch all weight samples (last 10 years) via FitIQCore
                 let startDate =
                     Calendar.current.date(byAdding: .year, value: -10, to: Date()) ?? Date()
-                let predicate = HKQuery.predicateForSamples(
-                    withStart: startDate,
-                    end: Date(),
-                    options: .strictStartDate
+
+                let metrics = try await healthKitService.query(
+                    type: .bodyMass,
+                    from: startDate,
+                    to: Date(),
+                    options: HealthQueryOptions(
+                        sortOrder: .reverseChronological
+                    )
                 )
 
-                let samples = try await healthRepository.fetchQuantitySamples(
-                    for: .bodyMass,
-                    unit: .gramUnit(with: .kilo),
-                    predicateProvider: { predicate },
-                    limit: nil
-                )
+                weightSampleCount = metrics.count
 
-                weightSampleCount = samples.count
-
-                if !samples.isEmpty {
-                    let dates = samples.map { $0.date }
+                if !metrics.isEmpty {
+                    let dates = metrics.map { $0.date }
                     latestWeightDate = dates.max()
                     oldestWeightDate = dates.min()
                 } else {
